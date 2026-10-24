@@ -7,9 +7,10 @@ separate module rather than as a parallel branch here, so the public surface
 stays small and the failure modes stay predictable.
 
 The caller — ``dispatch.invoke`` and ``catalog_sync.sync_catalog`` — owns
-auth resolution. By the time we get the ``access_token`` here, the caller
-has already decided whether the vendor will see the user identity or the
-service identity. This module only carries bytes over a wire.
+auth resolution. By the time we get the auth ``headers`` here, the caller
+has already decided whether the vendor will see the user identity, the
+service identity, or the connection's static headers. This module only
+carries bytes over a wire.
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ def _resolve_server_url(connection: MCPConnection) -> str:
 @asynccontextmanager
 async def open_session(
     connection: MCPConnection,
-    access_token: str,
+    headers: dict[str, str],
 ) -> AsyncIterator[ClientSession]:
     """Open an initialized Streamable HTTP MCP session for a connection.
 
@@ -52,9 +53,9 @@ async def open_session(
             we dial. The connection's ``server`` relationship must already
             be loaded — callers fetch it with ``joinedload`` or rely on the
             ORM's eager-load default.
-        access_token: The Bearer token to send. Resolution of which token
-            to use (per-user vs. shared service) happens in ``auth_resolution``;
-            this layer is auth-agnostic.
+        headers: Auth headers to send — a Bearer token or the connection's
+            static headers. Resolution happens in ``auth_resolution``; this
+            layer is auth-agnostic.
     """
     # Imported lazily so the mcp SDK (and its sse_starlette/uvicorn deps)
     # stays out of the worker import closure (tests/unit/test_import_hygiene.py).
@@ -62,7 +63,6 @@ async def open_session(
     from mcp.client.streamable_http import streamablehttp_client
 
     server_url = _resolve_server_url(connection)
-    headers = {"Authorization": f"Bearer {access_token}"}
 
     logger.debug(
         "Opening MCP session: connection=%s url=%s",

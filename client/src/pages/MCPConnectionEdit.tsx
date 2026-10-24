@@ -1,6 +1,10 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConnectionToolCatalog } from "./mcp/components/ConnectionToolCatalog";
 import {
+	ConnectionGatewayPanel,
+	ConnectionStaticHeaders,
+} from "./mcp/components/ConnectionGateway";
+import {
 	PageScrollArea,
 	PageWorkspace,
 } from "@/components/layout/PageWorkspace";
@@ -9,10 +13,12 @@ import {
  *
  * Panels:
  *   - OAuth credentials (this org)            — client_id + client_secret
+ *   - Authentication headers                  — servers with no OAuth provider
  *   - Optional URL overrides                  — server_url_override
  *   - Availability                            — chat / autonomous flags
- *   - Shared service connection               — connect / reconnect / disconnect
+ *   - Shared service connection               — OAuth servers only
  *   - Tool catalog                            — admin enable/disable per tool
+ *   - MCP Gateway                             — exposure, role grants, preview
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -243,6 +249,9 @@ export function MCPConnectionEdit() {
 		);
 	}
 
+	// Servers without an OAuth provider authenticate with static headers.
+	const usesOAuth = server.oauth_provider_id !== null;
+
 	const handleSave = async () => {
 		if (mutationBusy.current) return;
 		mutationBusy.current = true;
@@ -250,7 +259,7 @@ export function MCPConnectionEdit() {
 		setSaveError(null);
 		try {
 			const body: Record<string, unknown> = {
-				client_id: clientId,
+				...(usesOAuth ? { client_id: clientId } : {}),
 				server_url_override: serverUrlOverride || null,
 				available_in_chat: availableInChat,
 				available_to_autonomous: availableToAutonomous,
@@ -317,6 +326,12 @@ export function MCPConnectionEdit() {
 			queryClient.invalidateQueries({
 				queryKey: ["get", "/api/mcp-servers/{server_id}"],
 			});
+			queryClient.invalidateQueries({
+				queryKey: [
+					"get",
+					"/api/mcp-gateway/connections/{connection_id}",
+				],
+			});
 			setSetNewSecret(false);
 			setClientSecret("");
 		} catch (err) {
@@ -345,6 +360,12 @@ export function MCPConnectionEdit() {
 			);
 			await queryClient.invalidateQueries({
 				queryKey: ["get", "/api/mcp-connections/{connection_id}"],
+			});
+			queryClient.invalidateQueries({
+				queryKey: [
+					"get",
+					"/api/mcp-gateway/connections/{connection_id}",
+				],
 			});
 		} catch (err) {
 			setCatalogError(
@@ -427,96 +448,104 @@ export function MCPConnectionEdit() {
 			<PageScrollArea>
 				<fieldset disabled={pagePending} className="min-w-0 space-y-6">
 					{/* OAuth credentials */}
-					<Card>
-						<CardContent className="py-6 space-y-4">
-							<h2 className="text-lg font-semibold">
-								OAuth credentials (this org)
-							</h2>
-							<p className="text-xs text-muted-foreground">
-								Register a confidential OAuth app in the vendor
-								with the redirect URL shown on the server
-								template, paste credentials here.
-							</p>
-
-							<div className="space-y-2">
-								<Label htmlFor="client_id">Client ID</Label>
-								<Input
-									id="client_id"
-									value={clientId}
-									onChange={(e) =>
-										setClientId(e.target.value)
-									}
-									className="min-h-11 font-mono"
-								/>
-							</div>
-
-							<div className="space-y-2">
-								<div className="flex items-center gap-2">
-									<Switch
-										id="set_new_secret"
-										checked={setNewSecret}
-										onCheckedChange={(v) =>
-											setSetNewSecret(v === true)
-										}
-									/>
-									<Label
-										htmlFor="set_new_secret"
-										className="flex min-h-11 cursor-pointer items-center"
-									>
-										Set new client secret
-									</Label>
-								</div>
+					{usesOAuth ? (
+						<Card>
+							<CardContent className="py-6 space-y-4">
+								<h2 className="text-lg font-semibold">
+									OAuth credentials (this org)
+								</h2>
 								<p className="text-xs text-muted-foreground">
-									Existing secret is preserved unless this is
-									checked.
+									Register a confidential OAuth app in the
+									vendor with the redirect URL shown on the
+									server template, paste credentials here.
 								</p>
-							</div>
 
-							{setNewSecret && (
 								<div className="space-y-2">
-									<Label htmlFor="client_secret">
-										New client secret
-									</Label>
-									<div className="flex gap-2">
-										<Input
-											id="client_secret"
-											className="min-h-11 min-w-0 flex-1"
-											autoComplete="new-password"
-											type={
-												showSecret ? "text" : "password"
-											}
-											value={clientSecret}
-											onChange={(e) =>
-												setClientSecret(e.target.value)
-											}
-											placeholder="••••••••••••••••"
-										/>
-										<Button
-											type="button"
-											variant="outline"
-											size="icon"
-											className="min-h-11 min-w-11 shrink-0"
-											aria-label={
-												showSecret
-													? "Hide client secret"
-													: "Show client secret"
-											}
-											aria-controls="client_secret"
-											onClick={() =>
-												setShowSecret((s) => !s)
-											}
-										>
-											{showSecret ? (
-												<EyeOff className="h-4 w-4" />
-											) : (
-												<Eye className="h-4 w-4" />
-											)}
-										</Button>
-									</div>
+									<Label htmlFor="client_id">Client ID</Label>
+									<Input
+										id="client_id"
+										value={clientId}
+										onChange={(e) =>
+											setClientId(e.target.value)
+										}
+										className="min-h-11 font-mono"
+									/>
 								</div>
-							)}
-						</CardContent>
-					</Card>
+
+								<div className="space-y-2">
+									<div className="flex items-center gap-2">
+										<Switch
+											id="set_new_secret"
+											checked={setNewSecret}
+											onCheckedChange={(v) =>
+												setSetNewSecret(v === true)
+											}
+										/>
+										<Label
+											htmlFor="set_new_secret"
+											className="flex min-h-11 cursor-pointer items-center"
+										>
+											Set new client secret
+										</Label>
+									</div>
+									<p className="text-xs text-muted-foreground">
+										Existing secret is preserved unless this
+										is checked.
+									</p>
+								</div>
+
+								{setNewSecret && (
+									<div className="space-y-2">
+										<Label htmlFor="client_secret">
+											New client secret
+										</Label>
+										<div className="flex gap-2">
+											<Input
+												id="client_secret"
+												className="min-h-11 min-w-0 flex-1"
+												autoComplete="new-password"
+												type={
+													showSecret
+														? "text"
+														: "password"
+												}
+												value={clientSecret}
+												onChange={(e) =>
+													setClientSecret(
+														e.target.value,
+													)
+												}
+												placeholder="••••••••••••••••"
+											/>
+											<Button
+												type="button"
+												variant="outline"
+												size="icon"
+												className="min-h-11 min-w-11 shrink-0"
+												aria-label={
+													showSecret
+														? "Hide client secret"
+														: "Show client secret"
+												}
+												aria-controls="client_secret"
+												onClick={() =>
+													setShowSecret((s) => !s)
+												}
+											>
+												{showSecret ? (
+													<EyeOff className="h-4 w-4" />
+												) : (
+													<Eye className="h-4 w-4" />
+												)}
+											</Button>
+										</div>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					) : (
+						<ConnectionStaticHeaders connectionId={connection.id} />
+					)}
 
 					{/* Optional URL overrides */}
 					<Card>
@@ -619,89 +648,92 @@ export function MCPConnectionEdit() {
 					</Card>
 
 					{/* Shared service connection */}
-					<Card>
-						<CardContent className="py-6 space-y-4">
-							<h2 className="text-lg font-semibold">
-								Shared service connection
-							</h2>
+					{usesOAuth && (
+						<Card>
+							<CardContent className="py-6 space-y-4">
+								<h2 className="text-lg font-semibold">
+									Shared service connection
+								</h2>
 
-							<div className="flex flex-wrap items-center justify-between gap-4">
-								<div>
-									{isConnected ? (
-										<>
-											<Badge
-												variant="default"
-												className="bg-[var(--bf-success-soft)] text-[var(--bf-success)]"
+								<div className="flex flex-wrap items-center justify-between gap-4">
+									<div>
+										{isConnected ? (
+											<>
+												<Badge
+													variant="default"
+													className="bg-[var(--bf-success-soft)] text-[var(--bf-success)]"
+												>
+													Connected
+												</Badge>
+												<p className="text-xs text-muted-foreground mt-1">
+													Service token linked.
+													Refresh handled
+													automatically by the OAuth
+													refresh job.
+												</p>
+											</>
+										) : (
+											<>
+												<Badge
+													variant="default"
+													className="bg-amber-600 hover:bg-amber-700"
+												>
+													Not connected
+												</Badge>
+												<p className="text-xs text-muted-foreground mt-1">
+													No shared service token. The
+													chat / autonomous fallback
+													flags above won't take
+													effect until you connect.
+												</p>
+											</>
+										)}
+									</div>
+									<div className="flex gap-2">
+										{isClientCredentials ? (
+											<ActivateButton
+												connectionId={connection.id}
+												isConnected={isConnected}
+											/>
+										) : (
+											<Button
+												variant="outline"
+												onClick={() =>
+													setConnectModalOpen(true)
+												}
 											>
-												Connected
-											</Badge>
-											<p className="text-xs text-muted-foreground mt-1">
-												Service token linked. Refresh
-												handled automatically by the
-												OAuth refresh job.
-											</p>
-										</>
-									) : (
-										<>
-											<Badge
-												variant="default"
-												className="bg-amber-600 hover:bg-amber-700"
+												{isConnected
+													? "Reconnect"
+													: "Connect"}
+											</Button>
+										)}
+										{isConnected && (
+											<Button
+												variant="outline"
+												className="text-destructive hover:text-destructive hover:bg-destructive/10"
+												disabled={pagePending}
+												onClick={handleDisconnect}
 											>
-												Not connected
-											</Badge>
-											<p className="text-xs text-muted-foreground mt-1">
-												No shared service token. The
-												chat / autonomous fallback flags
-												above won't take effect until
-												you connect.
-											</p>
-										</>
-									)}
+												{serviceAction === "disconnect"
+													? "Disconnecting…"
+													: disconnectError
+														? "Retry disconnect"
+														: "Disconnect"}
+											</Button>
+										)}
+									</div>
 								</div>
-								<div className="flex gap-2">
-									{isClientCredentials ? (
-										<ActivateButton
-											connectionId={connection.id}
-											isConnected={isConnected}
-										/>
-									) : (
-										<Button
-											variant="outline"
-											onClick={() =>
-												setConnectModalOpen(true)
-											}
-										>
-											{isConnected
-												? "Reconnect"
-												: "Connect"}
-										</Button>
-									)}
-									{isConnected && (
-										<Button
-											variant="outline"
-											className="text-destructive hover:text-destructive hover:bg-destructive/10"
-											disabled={pagePending}
-											onClick={handleDisconnect}
-										>
-											{serviceAction === "disconnect"
-												? "Disconnecting…"
-												: disconnectError
-													? "Retry disconnect"
-													: "Disconnect"}
-										</Button>
-									)}
-								</div>
-							</div>
-							{disconnectError && (
-								<p
-									role="alert"
-									className="text-sm text-destructive [overflow-wrap:anywhere]"
-								>
-									{disconnectError}
-								</p>
-							)}
-						</CardContent>
-					</Card>
+								{disconnectError && (
+									<p
+										role="alert"
+										className="text-sm text-destructive [overflow-wrap:anywhere]"
+									>
+										{disconnectError}
+									</p>
+								)}
+							</CardContent>
+						</Card>
+					)}
 
 					{/* Tool catalog */}
 					<Card>
@@ -726,11 +758,12 @@ export function MCPConnectionEdit() {
 									type="button"
 									className="min-h-11"
 									disabled={
-										refreshTools.isPending || !isConnected
+										refreshTools.isPending ||
+										(usesOAuth && !isConnected)
 									}
 									onClick={handleRefreshTools}
 									title={
-										isConnected
+										!usesOAuth || isConnected
 											? "Re-fetch tools/list from the vendor"
 											: "Connect first to refresh the catalog"
 									}
@@ -769,7 +802,14 @@ export function MCPConnectionEdit() {
 									 * badge on every row.
 									 */}
 									<div className="text-xs text-muted-foreground border-l-2 border-primary bg-primary/5 px-3 py-2 rounded-md">
-										{isClientCredentials ? (
+										{!usesOAuth ? (
+											<>
+												<strong>Header auth:</strong>{" "}
+												every tool call sends this
+												connection's authentication
+												headers.
+											</>
+										) : isClientCredentials ? (
 											<>
 												<strong>
 													Server-to-server auth:
@@ -843,6 +883,8 @@ export function MCPConnectionEdit() {
 							</p>
 						</CardContent>
 					</Card>
+
+					<ConnectionGatewayPanel connectionId={connection.id} />
 				</fieldset>
 				{saveError && (
 					<Alert
@@ -943,7 +985,7 @@ export function MCPConnectionEdit() {
 				</AlertDialogContent>
 			</AlertDialog>
 
-			{!isClientCredentials && (
+			{usesOAuth && !isClientCredentials && (
 				<ConnectServicePopup
 					open={connectModalOpen}
 					onOpenChange={setConnectModalOpen}

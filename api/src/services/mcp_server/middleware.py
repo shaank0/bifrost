@@ -16,6 +16,7 @@ from fastmcp.server.middleware import Middleware, MiddlewareContext
 
 from src.services.mcp_server.agent_scope import (
     get_scoped_agent_id as _get_agent_id_from_scope,
+    is_gateway_request,
 )
 from src.services.mcp_server.tools.gateway import GATEWAY_TOOL_NAMES
 
@@ -40,6 +41,11 @@ class ToolFilterMiddleware(Middleware):
     When no agent_id is present:
     - on_list_tools: Returns only the gateway tools
     - on_call_tool: Rejects direct calls to hidden native tools
+
+    On ``/mcp/gateway`` (the connection proxy surface):
+    - on_list_tools: Returns the caller's granted connection tools
+    - on_call_tool: Dispatches to the connection without reaching FastMCP's
+      own tool registry
     """
 
     async def on_list_tools(
@@ -65,6 +71,16 @@ class ToolFilterMiddleware(Middleware):
             return []
 
         user_email = token.claims.get("email", "unknown")
+
+        if is_gateway_request():
+            from src.services.mcp_server.gateway_proxy import list_proxy_tools
+
+            try:
+                return await list_proxy_tools()
+            except Exception as e:
+                logger.exception(f"MCP tools/list: Error listing gateway tools: {e}")
+                # On error, return empty list for security
+                return []
 
         agent_id = _get_agent_id_from_scope()
         if agent_id is None:
@@ -150,6 +166,11 @@ class ToolFilterMiddleware(Middleware):
             raise ToolError("Authentication required to call tools")
 
         user_email = token.claims.get("email", "unknown")
+
+        if is_gateway_request():
+            from src.services.mcp_server.gateway_proxy import call_proxy_tool
+
+            return await call_proxy_tool(tool_name, context.message.arguments or {})
 
         agent_id = _get_agent_id_from_scope()
         if agent_id is None:

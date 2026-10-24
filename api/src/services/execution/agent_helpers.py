@@ -261,7 +261,10 @@ async def resolve_agent_tools(
             if caller_user_id is None:
                 if not connection.available_to_autonomous:
                     continue
-                if not _autonomous_service_token_usable(connection):
+                if (
+                    connection.encrypted_static_headers is None
+                    and not _autonomous_service_token_usable(connection)
+                ):
                     continue
             else:
                 # Chat-run gate: when no per-user OAuth path is possible
@@ -292,19 +295,15 @@ async def resolve_agent_tools(
                     )
                     continue
 
-                schema = catalog_row.tool_schema or {}
-                description = schema.get("description") or (
+                description = catalog_row.description or (
                     f"External MCP tool '{catalog_row.tool_name}' "
                     f"on connection {connection.id}"
                 )
-                # MCP tools advertise their argument schema under
-                # ``inputSchema`` per the spec; some servers use
-                # ``input_schema``. Accept either.
-                parameters = (
-                    schema.get("inputSchema")
-                    or schema.get("input_schema")
-                    or {"type": "object", "properties": {}}
-                )
+                # Catalog sync stores the vendor's ``inputSchema`` verbatim.
+                parameters = catalog_row.tool_schema or {
+                    "type": "object",
+                    "properties": {},
+                }
 
                 seen_names[qualified_name] = (
                     f"MCP tool '{catalog_row.tool_name}' on connection {connection.id}"

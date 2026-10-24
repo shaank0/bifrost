@@ -98,6 +98,7 @@ from src.routers import (
     mcp_connections_router,
     mcp_me_connections_router,
     mcp_oauth_callback_router,
+    mcp_gateway_router,
     sdk_modules_router,
     sdk_runtime_router,
     policy_rules_router,
@@ -475,6 +476,7 @@ def create_app() -> FastAPI:
     app.include_router(mcp_connections_router)
     app.include_router(mcp_me_connections_router)
     app.include_router(mcp_oauth_callback_router)
+    app.include_router(mcp_gateway_router)
     app.include_router(sdk_modules_router)
     app.include_router(sdk_runtime_router)
     app.include_router(policy_rules_router)

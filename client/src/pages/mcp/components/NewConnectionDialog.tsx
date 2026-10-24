@@ -25,17 +25,20 @@ import {
 
 /**
  * Lightweight new-connection dialog: pick org + initial credentials.
- * The full edit page (with availability flags + tool catalog) opens
- * automatically after create.
+ * Servers without an OAuth provider take no client credentials; their
+ * authentication headers are set on the edit page. The full edit page
+ * (with availability flags + tool catalog) opens automatically after create.
  */
 export function NewConnectionDialog({
 	open,
 	onOpenChange,
 	serverId,
+	usesOAuth,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	serverId: string;
+	usesOAuth: boolean;
 }) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -62,10 +65,12 @@ export function NewConnectionDialog({
 	const handleCreate = async () => {
 		if (busy.current || orgLoading || orgError) return;
 		setCreateError(null);
-		if (!orgId || !clientId || !clientSecret) {
-			setCreateError(
-				"Organization, client ID, and client secret are required",
-			);
+		if (!orgId) {
+			setCreateError("Organization is required");
+			return;
+		}
+		if (usesOAuth && (!clientId || !clientSecret)) {
+			setCreateError("Client ID and client secret are required");
 			return;
 		}
 		busy.current = true;
@@ -74,8 +79,9 @@ export function NewConnectionDialog({
 				body: {
 					server_id: serverId,
 					organization_id: orgId,
-					client_id: clientId,
-					client_secret: clientSecret,
+					...(usesOAuth
+						? { client_id: clientId, client_secret: clientSecret }
+						: {}),
 					available_in_chat: false,
 					available_to_autonomous: false,
 				},
@@ -117,7 +123,9 @@ export function NewConnectionDialog({
 					<DialogTitle>New MCP Connection</DialogTitle>
 					<DialogDescription>
 						Link this server template to an organization. You'll
-						configure availability and OAuth on the next page.
+						configure availability and{" "}
+						{usesOAuth ? "OAuth" : "authentication headers"} on the
+						next page.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -190,31 +198,39 @@ export function NewConnectionDialog({
 							</Select>
 						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="client_id">Client ID</Label>
-							<Input
-								id="client_id"
-								value={clientId}
-								onChange={(e) => setClientId(e.target.value)}
-								placeholder="abc123..."
-								className="min-h-11 font-mono"
-							/>
-						</div>
+						{usesOAuth && (
+							<>
+								<div className="space-y-2">
+									<Label htmlFor="client_id">Client ID</Label>
+									<Input
+										id="client_id"
+										value={clientId}
+										onChange={(e) =>
+											setClientId(e.target.value)
+										}
+										placeholder="abc123..."
+										className="min-h-11 font-mono"
+									/>
+								</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="client_secret">Client Secret</Label>
-							<Input
-								id="client_secret"
-								className="min-h-11"
-								autoComplete="new-password"
-								type="password"
-								value={clientSecret}
-								onChange={(e) =>
-									setClientSecret(e.target.value)
-								}
-								placeholder="••••••••••••••••"
-							/>
-						</div>
+								<div className="space-y-2">
+									<Label htmlFor="client_secret">
+										Client Secret
+									</Label>
+									<Input
+										id="client_secret"
+										className="min-h-11"
+										autoComplete="new-password"
+										type="password"
+										value={clientSecret}
+										onChange={(e) =>
+											setClientSecret(e.target.value)
+										}
+										placeholder="••••••••••••••••"
+									/>
+								</div>
+							</>
+						)}
 					</fieldset>
 				</div>
 				{createError && (

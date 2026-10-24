@@ -29,6 +29,7 @@ path (or raise NeedsReauthError if no fallback exists).
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
@@ -69,6 +70,9 @@ class ResolutionPath(StrEnum):
     SERVICE_FALLBACK_AUTONOMOUS = "service_fallback_autonomous"
     NEEDS_REAUTH = "needs_reauth"
     MISCONFIG = "misconfig"
+    # The connection authenticates with admin-configured static headers
+    # (API-key servers with no OAuth provider); no token is resolved.
+    STATIC_HEADERS = "static_headers"
 
 
 def _is_token_fresh(token: OAuthToken) -> bool:
@@ -132,6 +136,17 @@ def _decode_access_token(token: OAuthToken) -> str:
     """Decrypt the access token bytes from an OAuthToken row."""
     raw = token.encrypted_access_token
     return decrypt_secret(raw.decode() if isinstance(raw, bytes) else raw)
+
+
+def static_headers(connection: MCPConnection) -> dict[str, str] | None:
+    """Decrypt a connection's static headers, or ``None`` if it has none."""
+    if connection.encrypted_static_headers is None:
+        return None
+    return json.loads(decrypt_secret(connection.encrypted_static_headers))
+
+
+def bearer_headers(access_token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {access_token}"}
 
 
 def service_token_binding_error(

@@ -11326,6 +11326,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mcp-gateway/me/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the gateway tools served to the current user */
+        get: operations["list_my_gateway_tools_api_mcp_gateway_me_tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mcp-gateway/connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a connection's gateway settings, grants, and tool access */
+        get: operations["get_gateway_connection_api_mcp_gateway_connections__connection_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a connection's gateway exposure and slug */
+        patch: operations["update_gateway_connection_api_mcp_gateway_connections__connection_id__patch"];
+        trace?: never;
+    };
+    "/api/mcp-gateway/connections/{connection_id}/static-headers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or clear a connection's static headers */
+        put: operations["set_gateway_static_headers_api_mcp_gateway_connections__connection_id__static_headers_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mcp-gateway/connections/{connection_id}/grants/{role_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Grant a role access to a connection's gateway tools */
+        put: operations["put_gateway_grant_api_mcp_gateway_connections__connection_id__grants__role_id__put"];
+        post?: never;
+        /** Remove a role's gateway grant on a connection */
+        delete: operations["delete_gateway_grant_api_mcp_gateway_connections__connection_id__grants__role_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sdk/modules/{path}": {
         parameters: {
             query?: never;
@@ -21648,10 +21718,16 @@ export interface components {
              * Format: uuid
              */
             organization_id: string;
-            /** Client Id */
-            client_id: string;
-            /** Client Secret */
-            client_secret: string;
+            /**
+             * Client Id
+             * @description Required when the server authenticates with OAuth
+             */
+            client_id?: string | null;
+            /**
+             * Client Secret
+             * @description Required when the server authenticates with OAuth
+             */
+            client_secret?: string | null;
             /** Server Url Override */
             server_url_override?: string | null;
             /**
@@ -21910,6 +21986,60 @@ export interface components {
             guidance: string;
         };
         /**
+         * MCPGatewayCategoryRule
+         * @description Serve tools whose category is listed, plus ``allow``, minus ``deny``.
+         *
+         *     Dangerous tools (raw requests, generic executors) belong to no category
+         *     and are served only when named in ``allow``.
+         */
+        MCPGatewayCategoryRule: {
+            /** Categories */
+            categories?: ("read" | "create" | "modify" | "delete")[];
+            /** Allow */
+            allow?: string[];
+            /** Deny */
+            deny?: string[];
+        };
+        /** MCPGatewayConnectionPublic */
+        MCPGatewayConnectionPublic: {
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Slug */
+            slug: string | null;
+            /**
+             * Static Header Names
+             * @description Names of the configured static headers; values are never returned
+             */
+            static_header_names: string[];
+            /** Grants */
+            grants: components["schemas"]["MCPGatewayGrantPublic"][];
+            /** Tools */
+            tools: components["schemas"]["MCPGatewayToolPublic"][];
+        };
+        /** MCPGatewayConnectionUpdate */
+        MCPGatewayConnectionUpdate: {
+            /**
+             * Enabled
+             * @description Serve this connection's tools on /mcp/gateway
+             */
+            enabled?: boolean | null;
+            /**
+             * Slug
+             * @description Tool-name prefix on the gateway, e.g. 'autotask' → autotask__search_tickets
+             */
+            slug?: string | null;
+        };
+        /**
          * MCPGatewayExecuteRequest
          * @description Arguments passed to an agent-bound tool.
          */
@@ -21998,6 +22128,77 @@ export interface components {
             result_page?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** MCPGatewayGrantPublic */
+        MCPGatewayGrantPublic: {
+            /**
+             * Role Id
+             * Format: uuid
+             */
+            role_id: string;
+            /** Role Name */
+            role_name: string;
+            /** Rule */
+            rule: components["schemas"]["MCPGatewayCategoryRule"] | string[] | null;
+        };
+        /** MCPGatewayGrantUpdate */
+        MCPGatewayGrantUpdate: {
+            /**
+             * Rule
+             * @description Null = every tool; a list of tool names; or a category rule
+             */
+            rule?: components["schemas"]["MCPGatewayCategoryRule"] | string[] | null;
+        };
+        /** MCPGatewayMyTool */
+        MCPGatewayMyTool: {
+            /** Name */
+            name: string;
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /** Tool Name */
+            tool_name: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "read" | "create" | "modify" | "delete" | "dangerous";
+            /** Description */
+            description: string;
+        };
+        /** MCPGatewayStaticHeadersUpdate */
+        MCPGatewayStaticHeadersUpdate: {
+            /**
+             * Headers
+             * @description HTTP headers sent on every call to a server with no OAuth provider, e.g. an API key. Stored encrypted and never returned. Null clears them.
+             */
+            headers?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** MCPGatewayToolPublic */
+        MCPGatewayToolPublic: {
+            /** Tool Name */
+            tool_name: string;
+            /**
+             * Gateway Name
+             * @description Name served on /mcp/gateway; null until the connection has a slug
+             */
+            gateway_name: string | null;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "read" | "create" | "modify" | "delete" | "dangerous";
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Granted Role Ids
+             * @description Roles whose grant serves this tool
+             */
+            granted_role_ids: string[];
         };
         /**
          * MCPGatewayToolSummary
@@ -51745,6 +51946,195 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_gateway_tools_api_mcp_gateway_me_tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPGatewayMyTool"][];
+                };
+            };
+        };
+    };
+    get_gateway_connection_api_mcp_gateway_connections__connection_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPGatewayConnectionPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_gateway_connection_api_mcp_gateway_connections__connection_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPGatewayConnectionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPGatewayConnectionPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_gateway_static_headers_api_mcp_gateway_connections__connection_id__static_headers_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPGatewayStaticHeadersUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPGatewayConnectionPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_gateway_grant_api_mcp_gateway_connections__connection_id__grants__role_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPGatewayGrantUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPGatewayConnectionPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_gateway_grant_api_mcp_gateway_connections__connection_id__grants__role_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPGatewayConnectionPublic"];
+                };
             };
             /** @description Validation Error */
             422: {

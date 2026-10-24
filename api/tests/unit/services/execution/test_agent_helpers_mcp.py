@@ -149,17 +149,14 @@ async def _make_tool(
     description: str | None = None,
     input_schema: dict | None = None,
 ) -> MCPConnectionTool:
-    schema: dict = {}
-    if description is not None:
-        schema["description"] = description
-    if input_schema is not None:
-        schema["inputSchema"] = input_schema
-
+    # Shaped like catalog sync's rows: the vendor's inputSchema verbatim,
+    # with the description in its own column.
     tool = MCPConnectionTool(
         id=uuid4(),
         connection_id=connection.id,
         tool_name=tool_name,
-        tool_schema=schema,
+        tool_schema=input_schema or {},
+        description=description,
         enabled=enabled,
     )
     db.add(tool)
@@ -361,7 +358,7 @@ async def test_chat_includes_all_enabled_mcp_tools(
     assert id_map[always_on_a_qual] == conn_both.id
     assert id_map[autonomous_qual] == conn_auto.id
 
-    # Description from schema flows through
+    # Description and input schema flow through
     chat_only_def = next(t for t in tools if t.name == chat_only_qual)
     assert chat_only_def.description == "A chat-only tool"
     assert chat_only_def.parameters == {
@@ -369,7 +366,7 @@ async def test_chat_includes_all_enabled_mcp_tools(
         "properties": {"q": {"type": "string"}},
     }
 
-    # Default empty schema when tool_schema lacks inputSchema
+    # Default empty schema when the vendor advertised none
     chat_only_no_schema_def = next(
         t for t in tools if t.name == chat_only_no_schema_qual
     )

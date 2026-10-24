@@ -89,8 +89,17 @@ class MCPConnectionCreateRequest(BaseModel):
 
     server_id: UUID = Field(...)
     organization_id: UUID = Field(...)
-    client_id: str = Field(..., min_length=1, max_length=512)
-    client_secret: str = Field(..., min_length=1)
+    client_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=512,
+        description="Required when the server authenticates with OAuth",
+    )
+    client_secret: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Required when the server authenticates with OAuth",
+    )
     server_url_override: str | None = Field(default=None, max_length=2048)
     available_in_chat: bool = Field(default=False)
     available_to_autonomous: bool = Field(default=False)
@@ -516,12 +525,23 @@ async def create_mcp_connection(
             )
         ),
     )
+    # Servers without OAuth (API-key style, authenticated by static headers
+    # set through the MCP gateway API) have no client credentials.
+    if server.oauth_provider_id is not None and (
+        request.client_id is None or request.client_secret is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="client_id and client_secret are required for a server that uses OAuth",
+        )
 
     connection = MCPConnection(
         server_id=request.server_id,
         organization_id=request.organization_id,
-        client_id=request.client_id,
-        encrypted_client_secret=encrypt_secret(request.client_secret),
+        client_id=request.client_id or "",
+        encrypted_client_secret=(
+            encrypt_secret(request.client_secret) if request.client_secret is not None else ""
+        ),
         server_url_override=request.server_url_override,
         available_in_chat=request.available_in_chat,
         available_to_autonomous=request.available_to_autonomous,

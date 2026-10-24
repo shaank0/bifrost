@@ -2,10 +2,11 @@
  * MCP Management Acceptance (Admin)
  *
  * Covers the real admin UI happy path for auth-free external MCP management:
- * create a server template, create an org connection, edit connection metadata
- * and availability, verify persistence after reload, then delete the owned
- * connection and server. No third-party network, OAuth callback, or credential
- * response body is logged.
+ * create a server template, create an org connection without OAuth client
+ * credentials, set its authentication headers, edit connection metadata and
+ * availability, serve it on the MCP gateway with a role grant, verify
+ * persistence after reload, then delete the owned connection and server. No
+ * third-party network, OAuth callback, or credential response body is logged.
  */
 
 import { readFileSync } from "fs";
@@ -26,6 +27,13 @@ type MCPServer = {
 	is_active: boolean;
 };
 
+type MCPGatewayConnection = {
+	enabled: boolean;
+	slug: string | null;
+	static_header_names: string[];
+	grants: { role_id: string; role_name: string; rule: unknown }[];
+};
+
 type MCPConnection = {
 	id: string;
 	server_id: string;
@@ -41,7 +49,7 @@ type MCPConnection = {
 const UNIQUE = `${Date.now()}-${Math.floor(Math.random() * 10_000)}`;
 const SERVER_NAME = `E2E MCP Management ${UNIQUE}`;
 const SERVER_URL = `https://mcp-management-${UNIQUE}.example.test/mcp`;
-const UPDATED_CLIENT_ID = `e2e-management-client-updated-${UNIQUE}`;
+const GATEWAY_SLUG = `e2e-${Math.floor(Math.random() * 1_000_000)}`;
 const UPDATED_URL_OVERRIDE = `https://mcp-management-${UNIQUE}.example.test/org-one/mcp`;
 
 function readCredentials(): Credentials {
@@ -76,6 +84,17 @@ async function readConnection(
 	const response = await api.get(`/api/mcp-connections/${connectionId}`);
 	await expectStatus(response, [200], "read MCP connection");
 	return (await response.json()) as MCPConnection;
+}
+
+async function readGateway(
+	api: AuthedApi,
+	connectionId: string,
+): Promise<MCPGatewayConnection> {
+	const response = await api.get(
+		`/api/mcp-gateway/connections/${connectionId}`,
+	);
+	await expectStatus(response, [200], "read MCP gateway settings");
+	return (await response.json()) as MCPGatewayConnection;
 }
 
 async function deleteConnection(api: AuthedApi, connectionId: string) {
@@ -166,12 +185,9 @@ test.describe("MCP management acceptance", () => {
 			.getByRole("combobox", { name: "Organization" })
 			.click();
 		await page.getByRole("option", { name: credentials.org1.name }).click();
-		await createConnectionDialog
-			.getByLabel("Client ID")
-			.fill(`e2e-management-client-${UNIQUE}`);
-		await createConnectionDialog
-			.getByLabel("Client Secret")
-			.fill(`e2e-management-secret-${UNIQUE}`);
+		await expect(
+			createConnectionDialog.getByLabel("Client ID"),
+		).toHaveCount(0);
 		await createConnectionDialog
 			.getByRole("button", { name: "Create" })
 			.click();
@@ -191,12 +207,17 @@ test.describe("MCP management acceptance", () => {
 				name: `${credentials.org1.name} connection`,
 			}),
 		).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByText("Not connected")).toBeVisible();
-		await expect(
-			page.getByRole("button", { name: "Refresh catalog" }),
-		).toBeDisabled();
+		await expect(page.getByLabel("Client ID")).toHaveCount(0);
+		await expect(page.getByText("Not connected")).toHaveCount(0);
 
-		await page.getByLabel("Client ID").fill(UPDATED_CLIENT_ID);
+		await page.getByRole("button", { name: "Add Headers" }).click();
+		await page.getByLabel("Header Name").fill("X-API-Key");
+		await page.getByLabel("Header Value").fill(`e2e-key-${UNIQUE}`);
+		await page.getByRole("button", { name: "Save Headers" }).click();
+		await expect(
+			page.getByRole("button", { name: "Replace Headers" }),
+		).toBeVisible({ timeout: 15_000 });
+
 		await page.getByLabel("Server URL override").fill(UPDATED_URL_OVERRIDE);
 
 		const chatSwitch = page.getByRole("switch", {
@@ -209,8 +230,10 @@ test.describe("MCP management acceptance", () => {
 		if (!(await autonomousSwitch.isChecked()))
 			await autonomousSwitch.click();
 
-		await page.getByRole("button", { name: "Save" }).click();
-		await expect(page.getByRole("button", { name: "Save" })).toBeEnabled({
+		await page.getByRole("button", { name: "Save", exact: true }).click();
+		await expect(
+			page.getByRole("button", { name: "Save", exact: true }),
+		).toBeEnabled({
 			timeout: 15_000,
 		});
 
@@ -219,7 +242,7 @@ test.describe("MCP management acceptance", () => {
 			id: connectionId,
 			server_id: serverId,
 			organization_id: credentials.org1.id,
-			client_id: UPDATED_CLIENT_ID,
+			client_id: "",
 			server_url_override: UPDATED_URL_OVERRIDE,
 			available_in_chat: true,
 			available_to_autonomous: true,
@@ -227,15 +250,52 @@ test.describe("MCP management acceptance", () => {
 		});
 		expect(persistedConnection.tools ?? []).toHaveLength(0);
 
+		await page.getByLabel("Tool Prefix").fill(GATEWAY_SLUG);
+		await page
+			.getByRole("switch", { name: "Serve on MCP Gateway" })
+			.click();
+		await page
+			.getByRole("button", { name: "Save Gateway Settings" })
+			.click();
+		await expect(
+			page.getByRole("button", { name: "Save Gateway Settings" }),
+		).toBeDisabled({ timeout: 15_000 });
+
+		await page.getByRole("button", { name: "Grant Role" }).click();
+		const grantDialog = page.getByRole("dialog", {
+			name: "Grant Role Access",
+		});
+		await grantDialog.getByRole("combobox", { name: "Role" }).click();
+		await page.getByRole("option", { name: "User", exact: true }).click();
+		await grantDialog.getByRole("button", { name: "Save Access" }).click();
+		await expect(grantDialog).toBeHidden({ timeout: 15_000 });
+		await expect(
+			page.getByRole("list", { name: "Role access" }),
+		).toContainText("User");
+
+		const persistedGateway = await readGateway(api, connectionId!);
+		expect(persistedGateway).toMatchObject({
+			enabled: true,
+			slug: GATEWAY_SLUG,
+			static_header_names: ["X-API-Key"],
+		});
+		expect(persistedGateway.grants).toEqual([
+			expect.objectContaining({
+				role_name: "User",
+				rule: { categories: ["read"], allow: [], deny: [] },
+			}),
+		]);
+
 		await page.reload();
 		await expect(
 			page.getByRole("heading", {
 				name: `${credentials.org1.name} connection`,
 			}),
 		).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByLabel("Client ID")).toHaveValue(
-			UPDATED_CLIENT_ID,
-		);
+		await expect(page.getByLabel("Tool Prefix")).toHaveValue(GATEWAY_SLUG);
+		await expect(
+			page.getByRole("switch", { name: "Serve on MCP Gateway" }),
+		).toBeChecked();
 		await expect(page.getByLabel("Server URL override")).toHaveValue(
 			UPDATED_URL_OVERRIDE,
 		);
