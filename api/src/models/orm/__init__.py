@@ -44,6 +44,7 @@ from src.models.orm.external_mcp import (
     AgentMCPConnection,
     MCPConnection,
     MCPConnectionTool,
+    MCPGatewayRoleGrant,
     MCPServer,
     UserMCPCredential,
 )
@@ -212,6 +213,7 @@ __all__ = [
     "MCPConnectionTool",
     "UserMCPCredential",
     "AgentMCPConnection",
+    "MCPGatewayRoleGrant",
     # Tables (App Builder)
     "Table",
     "Document",

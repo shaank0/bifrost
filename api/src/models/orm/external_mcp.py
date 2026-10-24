@@ -147,6 +147,20 @@ class MCPConnection(Base):
         default=None,
         nullable=True,
     )
+    # Encrypted JSON object of HTTP headers sent on every call to a server
+    # with no OAuth provider (API-key style servers). Never returned by the API.
+    encrypted_static_headers: Mapped[str | None] = mapped_column(
+        Text, default=None, nullable=True
+    )
+    # MCP gateway exposure: when enabled, the connection's tools are served on
+    # /mcp/gateway as ``{gateway_slug}__{tool_name}`` to callers whose roles
+    # hold a grant (see MCPGatewayRoleGrant).
+    gateway_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    gateway_slug: Mapped[str | None] = mapped_column(
+        String(40), default=None, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -188,6 +202,13 @@ class MCPConnection(Base):
             "server_id",
             "organization_id",
             unique=True,
+        ),
+        Index(
+            "ix_mcp_connections_unique_gateway_slug",
+            "organization_id",
+            "gateway_slug",
+            unique=True,
+            postgresql_where=text("gateway_slug IS NOT NULL"),
         ),
     )
 
@@ -371,4 +392,53 @@ class AgentMCPConnection(Base):
     __table_args__ = (
         Index("ix_agent_mcp_connections_agent_id", "agent_id"),
         Index("ix_agent_mcp_connections_connection_id", "connection_id"),
+    )
+
+
+class MCPGatewayRoleGrant(Base):
+    """Grant of one role's access to one connection's tools on /mcp/gateway.
+
+    ``rule`` is ``NULL`` (all tools), a list of tool names, or a category
+    rule ``{"categories", "allow", "deny"}`` — parsed fail-closed by
+    ``src.services.mcp_gateway.access.parse_rule``. One row per
+    (connection, role); a caller's access is the union over their roles.
+    """
+
+    __tablename__ = "mcp_gateway_role_grants"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    connection_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mcp_connections.id", ondelete="CASCADE", onupdate="CASCADE"),
+        nullable=False,
+    )
+    role_id: Mapped[UUID] = mapped_column(
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    rule: Mapped[dict | list | None] = mapped_column(JSONB, default=None, nullable=True)
+    granted_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        default=None,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=text("NOW()"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=text("NOW()"),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        Index("ix_mcp_gateway_role_grants_role_id", "role_id"),
+        Index(
+            "ix_mcp_gateway_role_grants_unique",
+            "connection_id",
+            "role_id",
+            unique=True,
+        ),
     )

@@ -37,11 +37,15 @@ from src.models.orm.external_mcp import MCPConnection, MCPConnectionTool
 from src.services.mcp_client import client as mcp_client_session
 from src.services.mcp_client.auth_resolution import (
     ResolutionPath,
+    bearer_headers,
     resolve_token,
+    static_headers,
 )
 from src.services.mcp_client.errors import (
     NeedsReauthError,
     ToolDispatchError,
+    describe_remote_error,
+    remote_error_leaves,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,10 +66,11 @@ def _looks_like_auth_error(exc: BaseException) -> bool:
     funnel through the same retry path.
     """
     msg_chain: list[str] = []
-    cur: BaseException | None = exc
-    while cur is not None:
-        msg_chain.append(str(cur).lower())
-        cur = cur.__cause__ or cur.__context__
+    for leaf in remote_error_leaves(exc):
+        cur: BaseException | None = leaf
+        while cur is not None:
+            msg_chain.append(str(cur).lower())
+            cur = cur.__cause__ or cur.__context__
     blob = " ".join(msg_chain)
     return any(marker in blob for marker in _AUTH_ERROR_MARKERS)
 
@@ -111,13 +116,24 @@ async def _load_tool(
 
 async def _call_remote(
     connection: MCPConnection,
-    access_token: str,
+    headers: dict[str, str],
     tool_name: str,
     arguments: dict[str, Any],
 ) -> CallToolResult:
     """Open a session, call the tool, return the raw result."""
-    async with mcp_client_session.open_session(connection, access_token) as session:
+    async with mcp_client_session.open_session(connection, headers) as session:
         return await session.call_tool(tool_name, arguments)
+
+
+async def _resolve_headers(
+    connection: MCPConnection, caller_user_id: UUID | None, db: AsyncSession
+) -> tuple[dict[str, str], ResolutionPath]:
+    """Static headers when the connection has them, else a resolved Bearer token."""
+    headers = static_headers(connection)
+    if headers is not None:
+        return headers, ResolutionPath.STATIC_HEADERS
+    access_token, resolution_path = await resolve_token(connection, caller_user_id, db)
+    return bearer_headers(access_token), resolution_path
 
 
 async def invoke(
@@ -169,16 +185,19 @@ async def invoke(
             tool_name=tool_name,
         )
 
-    access_token, resolution_path = await resolve_token(
-        connection, caller_user_id, db
-    )
+    headers, resolution_path = await _resolve_headers(connection, caller_user_id, db)
 
     try:
-        result = await _call_remote(connection, access_token, tool_name, arguments)
+        result = await _call_remote(connection, headers, tool_name, arguments)
     except Exception as exc:
-        if not _looks_like_auth_error(exc):
+        # Static headers have no refresh path, so an auth rejection fails
+        # like any other remote error.
+        if (
+            resolution_path == ResolutionPath.STATIC_HEADERS
+            or not _looks_like_auth_error(exc)
+        ):
             raise ToolDispatchError(
-                f"MCP call_tool {tool_name!r} on connection {connection.id} failed: {exc}",
+                f"MCP call_tool {tool_name!r} on connection {connection.id} failed: {describe_remote_error(exc)}",
                 connection_id=connection.id,
                 tool_name=tool_name,
             ) from exc
@@ -193,12 +212,12 @@ async def invoke(
             tool_name,
         )
         await db.refresh(connection)
-        access_token, resolution_path = await resolve_token(
+        headers, resolution_path = await _resolve_headers(
             connection, caller_user_id, db
         )
         try:
             result = await _call_remote(
-                connection, access_token, tool_name, arguments
+                connection, headers, tool_name, arguments
             )
         except Exception as retry_exc:
             if (
@@ -212,7 +231,7 @@ async def invoke(
                     tool_name=tool_name,
                 ) from retry_exc
             raise ToolDispatchError(
-                f"MCP call_tool {tool_name!r} on connection {connection.id} failed after retry: {retry_exc}",
+                f"MCP call_tool {tool_name!r} on connection {connection.id} failed after retry: {describe_remote_error(retry_exc)}",
                 connection_id=connection.id,
                 tool_name=tool_name,
             ) from retry_exc

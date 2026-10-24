@@ -265,7 +265,10 @@ async def resolve_agent_tools(
             if caller_user_id is None:
                 if not connection.available_to_autonomous:
                     continue
-                if not _autonomous_service_token_usable(connection):
+                if (
+                    connection.encrypted_static_headers is None
+                    and not _autonomous_service_token_usable(connection)
+                ):
                     continue
             else:
                 # Chat-run gate: when no per-user OAuth path is possible

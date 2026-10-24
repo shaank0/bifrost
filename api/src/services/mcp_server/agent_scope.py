@@ -3,7 +3,9 @@ ASGI middleware that extracts agent_id from /mcp/{agent_id} paths.
 
 Intercepts requests to /mcp/{uuid}, stores the agent_id in the ASGI scope
 as scope["mcp_agent_id"], and rewrites the path to /mcp so FastMCP's
-route matcher works. Non-UUID paths (including /mcp/callback) pass through.
+route matcher works. Requests to /mcp/gateway are marked with
+scope["mcp_gateway"] and rewritten the same way. Other paths (including
+/mcp/callback) pass through.
 """
 
 import contextvars
@@ -19,6 +21,17 @@ _AGENT_PATH_RE = re.compile(
     r"^(/mcp)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(/.*)?$",
     re.IGNORECASE,
 )
+
+
+_GATEWAY_PATH_RE = re.compile(r"^(/mcp)/gateway(/.*)?$")
+
+
+def is_gateway_request() -> bool:
+    """Whether the current FastMCP request came in on /mcp/gateway."""
+    try:
+        return bool(get_http_request().scope.get("mcp_gateway"))
+    except RuntimeError:
+        return False
 
 
 def get_scoped_agent_id() -> UUID | None:
@@ -43,10 +56,14 @@ class AgentScopeMCPMiddleware:
         if scope["type"] in ("http", "websocket"):
             path = scope.get("path", "")
             match = _AGENT_PATH_RE.match(path)
+            gateway_match = _GATEWAY_PATH_RE.match(path)
             if match:
                 scope["mcp_agent_id"] = match.group(2)
                 # Rewrite path to /mcp (preserving any trailing path like /mcp/sse)
                 scope["path"] = match.group(1) + (match.group(3) or "")
+            elif gateway_match:
+                scope["mcp_gateway"] = True
+                scope["path"] = gateway_match.group(1) + (gateway_match.group(2) or "")
             scope_token = _REQUEST_SCOPE.set(scope)
         try:
             await self.app(scope, receive, send)

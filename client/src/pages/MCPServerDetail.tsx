@@ -330,6 +330,7 @@ export function MCPServerDetail() {
 				open={createOpen}
 				onOpenChange={setCreateOpen}
 				serverId={server.id}
+				usesOAuth={server.oauth_provider_id !== null}
 			/>
 
 			<AlertDialog

@@ -88,3 +88,22 @@ class ToolDispatchError(Exception):
         self.connection_id = connection_id
         self.tool_name = tool_name
         super().__init__(message)
+
+
+def remote_error_leaves(exc: BaseException) -> list[BaseException]:
+    """The underlying errors of a remote MCP failure.
+
+    The MCP SDK runs its transport in an anyio task group, so connection
+    refusals and HTTP status errors arrive wrapped in an exception group
+    whose own message names neither.
+    """
+    if isinstance(exc, BaseExceptionGroup):
+        return [leaf for sub in exc.exceptions for leaf in remote_error_leaves(sub)]
+    return [exc]
+
+
+def describe_remote_error(exc: BaseException) -> str:
+    """One-line description of a remote MCP failure's underlying errors."""
+    return "; ".join(
+        f"{type(leaf).__name__}: {leaf}" for leaf in remote_error_leaves(exc)
+    )

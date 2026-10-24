@@ -62,6 +62,7 @@ from src.routers.maintenance import router as maintenance_router
 from src.routers.mcp import router as mcp_router
 from src.routers.mcp_connections import me_router as mcp_me_connections_router
 from src.routers.mcp_connections import router as mcp_connections_router
+from src.routers.mcp_gateway import router as mcp_gateway_router
 from src.routers.mcp_oauth_callback import router as mcp_oauth_callback_router
 from src.routers.mcp_servers import router as mcp_servers_router
 from src.routers.memory import admin_router as memory_admin_router
@@ -504,6 +505,7 @@ def create_app() -> FastAPI:
     app.include_router(platform_stuck_router)
     app.include_router(mcp_servers_router)
     app.include_router(mcp_connections_router)
+    app.include_router(mcp_gateway_router)
     app.include_router(mcp_me_connections_router)
     app.include_router(mcp_oauth_callback_router)
     app.include_router(sdk_modules_router)

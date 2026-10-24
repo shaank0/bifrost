@@ -37,9 +37,15 @@ from src.services.mcp_client.auth_resolution import (
     _decode_access_token,
     _is_token_fresh,
     _refresh_token_in_place,
+    bearer_headers,
     service_token_binding_error,
+    static_headers,
 )
-from src.services.mcp_client.errors import MisconfigError, ToolDispatchError
+from src.services.mcp_client.errors import (
+    MisconfigError,
+    ToolDispatchError,
+    describe_remote_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +102,8 @@ async def sync_catalog(
 
     Args:
         connection: The connection to sync. Must have its ``server`` and
-            ``service_oauth_token`` relationships loaded.
+            ``service_oauth_token`` relationships loaded. A connection with
+            static headers syncs with those instead of a service token.
         db: Active async session. Upserts and disable-flags are committed
             here.
 
@@ -108,14 +115,16 @@ async def sync_catalog(
         MisconfigError: No service token, no provider, or refresh failed.
         ToolDispatchError: The vendor's ``tools/list`` call raised.
     """
-    access_token = await _resolve_service_token_for_sync(connection, db)
+    headers = static_headers(connection)
+    if headers is None:
+        headers = bearer_headers(await _resolve_service_token_for_sync(connection, db))
 
     try:
-        async with mcp_client_session.open_session(connection, access_token) as session:
+        async with mcp_client_session.open_session(connection, headers) as session:
             tools_result = await session.list_tools()
     except Exception as exc:
         raise ToolDispatchError(
-            f"tools/list failed for connection {connection.id}: {exc}",
+            f"tools/list failed for connection {connection.id}: {describe_remote_error(exc)}",
             connection_id=connection.id,
         ) from exc
 
