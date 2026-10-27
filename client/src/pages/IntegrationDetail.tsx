@@ -970,6 +970,10 @@ export function IntegrationDetail() {
 										!!integration.list_entities_data_provider_id
 									}
 									hasOAuth={!!integration.has_oauth_config}
+									usesClientCredentials={
+										oauthConfig?.oauth_flow_type ===
+										"client_credentials"
+									}
 									configSchema={
 										integration?.config_schema || []
 									}

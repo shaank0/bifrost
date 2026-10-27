@@ -1848,10 +1848,24 @@ async def refresh_mapping_oauth(
         repo, ctx, user, integration_id, mapping_id, operation="integrations.mappings.refresh"
     )
     if not mapping.oauth_token_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Mapping has no per-row OAuth connection to refresh",
+        integration = await repo.get_integration_by_id(integration_id)
+        provider = integration.oauth_provider if integration else None
+        if provider is None or provider.oauth_flow_type != "client_credentials":
+            raise HTTPException(
+                status_code=400,
+                detail="Mapping has no per-row OAuth connection to refresh",
+            )
+        # Client credentials has no sign-in to start a row's connection, so the
+        # first refresh mints the row's token from its own entity_id.
+        new_token = OAuthToken(
+            organization_id=mapping.organization_id,
+            provider_id=provider.id,
+            encrypted_access_token=b"",
         )
+        ctx.db.add(new_token)
+        await ctx.db.flush()
+        mapping.oauth_token_id = new_token.id
+        await ctx.db.flush()
 
     token = await ctx.db.get(OAuthToken, mapping.oauth_token_id)
     if not token:

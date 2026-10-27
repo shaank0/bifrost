@@ -498,6 +498,63 @@ class TestPerMappingRefresh:
             )
 
 
+    @pytest.mark.asyncio
+    async def test_client_credentials_refresh_mints_first_row_token(
+        self, e2e_client, platform_admin, db_session, org1
+    ):
+        """A client-credentials row with no token tries its first token
+        exchange instead of refusing; a failed exchange leaves it unlinked."""
+        from uuid import uuid4
+
+        from src.core.security import encrypt_secret
+
+        integ_resp = e2e_client.post(
+            "/api/integrations",
+            headers=platform_admin.headers,
+            json={"name": f"e2e_cc_first_token_{uuid4().hex[:8]}"},
+        )
+        assert integ_resp.status_code == 201
+        integration = integ_resp.json()
+        db_session.add(
+            OAuthProvider(
+                provider_name=f"cc_first_{uuid4().hex[:6]}",
+                oauth_flow_type="client_credentials",
+                client_id="test-client-id",
+                encrypted_client_secret=encrypt_secret("test-secret").encode(),
+                token_url="http://127.0.0.1:9/{entity_id}/token",
+                integration_id=UUID(integration["id"]),
+            )
+        )
+        await db_session.commit()
+
+        try:
+            mapping_resp = e2e_client.post(
+                f"/api/integrations/{integration['id']}/mappings",
+                headers=platform_admin.headers,
+                json={"organization_id": str(org1["id"]), "entity_id": "tenant-1"},
+            )
+            assert mapping_resp.status_code == 201
+            mapping_id = mapping_resp.json()["id"]
+
+            refresh_resp = e2e_client.post(
+                f"/api/integrations/{integration['id']}/mappings/{mapping_id}/oauth/refresh",
+                headers=platform_admin.headers,
+            )
+            assert refresh_resp.status_code == 502, refresh_resp.text
+
+            mapping = e2e_client.get(
+                f"/api/integrations/{integration['id']}/mappings/{mapping_id}",
+                headers=platform_admin.headers,
+            )
+            assert mapping.status_code == 200
+            assert mapping.json()["oauth_token_id"] is None
+        finally:
+            e2e_client.delete(
+                f"/api/integrations/{integration['id']}",
+                headers=platform_admin.headers,
+            )
+
+
 @pytest.mark.e2e
 class TestEmptyEntityId:
     """Mappings can be created and updated with an empty entity_id.

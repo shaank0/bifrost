@@ -433,8 +433,10 @@ export function IntegrationOverview({
 							)}
 							{canManageDefinitions && (
 								<p className="text-xs text-muted-foreground mt-1">
-									Used when an organization isn't individually
-									connected via its mapping.
+									{oauthConfig?.oauth_flow_type ===
+									"client_credentials"
+										? "These app credentials serve every mapping. Each mapping gets its own token from its entity ID; this token is only a fallback for organizations without one."
+										: "Used when an organization isn't individually connected via its mapping."}
 								</p>
 							)}
 						</div>
