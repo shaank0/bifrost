@@ -671,6 +671,69 @@ describe("IntegrationMappingsTab — OAuth connection column", () => {
 		expect(onConnectMapping).toHaveBeenCalledWith(org);
 	});
 
+	it("gets a client-credentials token for the row instead of starting a sign-in", async () => {
+		const onConnectMapping = vi.fn();
+		const onRefreshMapping = vi.fn();
+		const org = {
+			id: "org-1",
+			name: "Org 1",
+			mapping: {
+				id: "m-1",
+				entity_id: "tenant-1",
+				oauth_token_id: null,
+				connection_status: null,
+			} as unknown as IntegrationMapping,
+			formData: {
+				organization_id: "org-1",
+				entity_id: "tenant-1",
+				entity_name: "",
+				config: {},
+			},
+		};
+		const { user } = renderTab({
+			hasOAuth: true,
+			usesClientCredentials: true,
+			onConnectMapping,
+			onRefreshMapping,
+			orgsWithMappings: [org],
+		});
+		await user.click(
+			screen.getByRole("button", { name: "Mapping actions for Org 1" }),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: "Connect" }),
+		).not.toBeInTheDocument();
+		await user.click(screen.getByRole("menuitem", { name: "Get Token" }));
+		expect(onRefreshMapping).toHaveBeenCalledWith(org);
+		expect(onConnectMapping).not.toHaveBeenCalled();
+	});
+
+	it("keeps Get Token disabled until the row has an entity ID", async () => {
+		const { user } = renderTab({
+			hasOAuth: true,
+			usesClientCredentials: true,
+			orgsWithMappings: [
+				{
+					id: "org-1",
+					name: "Org 1",
+					mapping: undefined,
+					formData: {
+						organization_id: "org-1",
+						entity_id: "",
+						entity_name: "",
+						config: {},
+					},
+				},
+			],
+		});
+		await user.click(
+			screen.getByRole("button", { name: "Mapping actions for Org 1" }),
+		);
+		expect(
+			screen.getByRole("menuitem", { name: "Get Token" }),
+		).toHaveAttribute("aria-disabled", "true");
+	});
+
 	it("offers Connect (not 'Save row first') when no mapping exists yet", async () => {
 		const props = {
 			hasOAuth: true,

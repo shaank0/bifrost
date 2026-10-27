@@ -203,4 +203,26 @@ describe("IntegrationOverview — default fallback helper text", () => {
 			),
 		).toBeInTheDocument();
 	});
+
+	it("explains that client-credentials mappings get their own tokens", () => {
+		renderOverview({
+			integration: {
+				name: "Test",
+				has_oauth_config: true,
+				config_schema: [],
+				config_defaults: {},
+				default_entity_id: null,
+				entity_id_name: null,
+			},
+			oauthConfig: {
+				status: "pending",
+				oauth_flow_type: "client_credentials",
+			},
+			isOAuthConnected: false,
+			canUseAuthCodeFlow: false,
+		});
+		expect(
+			screen.getByText(/each mapping gets its own token/i),
+		).toBeInTheDocument();
+	});
 });

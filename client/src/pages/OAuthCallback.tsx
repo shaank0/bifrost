@@ -40,7 +40,10 @@ export function OAuthCallback() {
 
 	const finishPicker = () => {
 		if (window.opener) {
-			window.opener.postMessage({ type: "oauth_success", integrationId }, window.location.origin);
+			window.opener.postMessage(
+				{ type: "oauth_success", integrationId },
+				window.location.origin,
+			);
 			window.close();
 		} else {
 			navigate("/integrations", { replace: true });
@@ -86,11 +89,19 @@ export function OAuthCallback() {
 				// Send the authorization code to the API for token exchange
 				// Include redirect_uri - must match what was sent during authorization
 				const redirectUri = `${window.location.origin}/oauth/callback/${integrationId}`;
+				// Providers such as Intuit return the connected entity (realmId)
+				// as a callback URL param; the API captures it into the mapping.
+				const callbackUrlParams = Object.fromEntries(
+					[...searchParams].filter(
+						([key]) => key !== "code" && key !== "state",
+					),
+				);
 				const response = await handleOAuthCallback(
 					integrationId,
 					code,
 					state,
 					redirectUri,
+					callbackUrlParams,
 				);
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const responseData = response as any; // Response may include error_message or warning_message
@@ -146,7 +157,9 @@ export function OAuthCallback() {
 							string | null | undefined) ?? null,
 					);
 					setStatus("picker");
-					setMessage("Connection established. Choose an entity ID source below.");
+					setMessage(
+						"Connection established. Choose an entity ID source below.",
+					);
 					return;
 				}
 
@@ -249,14 +262,22 @@ export function OAuthCallback() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<p role={status === "error" ? "alert" : "status"} className="text-sm text-muted-foreground mb-4 [overflow-wrap:anywhere]">
+					<p
+						role={status === "error" ? "alert" : "status"}
+						className="text-sm text-muted-foreground mb-4 [overflow-wrap:anywhere]"
+					>
 						{message}
 					</p>
 
 					{/* Warning state */}
 					{status === "warning" && warning && (
 						<>
-							<p role="alert" className="text-sm mb-4 [overflow-wrap:anywhere]">{warning}</p>
+							<p
+								role="alert"
+								className="text-sm mb-4 [overflow-wrap:anywhere]"
+							>
+								{warning}
+							</p>
 							<div className="flex justify-center">
 								<Button
 									onClick={() => {
@@ -311,7 +332,9 @@ export function OAuthCallback() {
 					)}
 					{status === "success" && !capturedEntityId && (
 						<p className="text-xs text-muted-foreground">
-							{window.opener ? "This window will close automatically…" : "Returning to integrations…"}
+							{window.opener
+								? "This window will close automatically…"
+								: "Returning to integrations…"}
 						</p>
 					)}
 
@@ -341,7 +364,11 @@ export function OAuthCallback() {
 							error={pickerError}
 							onSkip={finishPicker}
 							onSelect={(candidate) => {
-								if (!integrationId || setEntityIdSource.isPending) return;
+								if (
+									!integrationId ||
+									setEntityIdSource.isPending
+								)
+									return;
 								setPickerError(null);
 								setEntityIdSource.mutate(
 									{
@@ -360,7 +387,10 @@ export function OAuthCallback() {
 									},
 									{
 										onSuccess: finishPicker,
-										onError: () => setPickerError("Could not save the entity ID source. Your selection is preserved. Try again or skip setup."),
+										onError: () =>
+											setPickerError(
+												"Could not save the entity ID source. Your selection is preserved. Try again or skip setup.",
+											),
 									},
 								);
 							}}

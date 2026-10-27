@@ -76,6 +76,8 @@ export interface IntegrationMappingsTabProps {
 	onRetryEntities?: () => void;
 	hasDataProvider: boolean;
 	hasOAuth: boolean;
+	/** Client credentials: each row gets its own token from its entity, with no sign-in. */
+	usesClientCredentials?: boolean;
 	configSchema: ConfigSchemaField[];
 	configDefaults: Record<string, unknown> | null | undefined;
 	autoMatchSuggestions: Map<string, MatchSuggestion>;
@@ -111,6 +113,7 @@ export function IntegrationMappingsTab({
 	onRetryEntities,
 	hasDataProvider,
 	hasOAuth,
+	usesClientCredentials = false,
 	configSchema,
 	configDefaults,
 	autoMatchSuggestions,
@@ -338,6 +341,9 @@ export function IntegrationMappingsTab({
 											}
 											isEntitiesError={isEntitiesError}
 											hasOAuth={hasOAuth}
+											usesClientCredentials={
+												usesClientCredentials
+											}
 											onRefreshMapping={onRefreshMapping}
 											onConnectMapping={onConnectMapping}
 											onOpenConfigDialog={
@@ -473,6 +479,7 @@ function IntegrationMappingRecord({
 	isLoadingEntities,
 	isEntitiesError,
 	hasOAuth,
+	usesClientCredentials,
 	onRefreshMapping,
 	onConnectMapping,
 	onOpenConfigDialog,
@@ -492,6 +499,7 @@ function IntegrationMappingRecord({
 	| "isLoadingEntities"
 	| "isEntitiesError"
 	| "hasOAuth"
+	| "usesClientCredentials"
 	| "onRefreshMapping"
 	| "onConnectMapping"
 	| "onOpenConfigDialog"
@@ -658,25 +666,50 @@ function IntegrationMappingRecord({
 									/>
 								)}
 							</DropdownMenuItem>
-							{hasOAuth && connectionState !== "connected" && (
-								<DropdownMenuItem
-									disabled={isRowLocked || isConnectPending}
-									onSelect={() => onConnectMapping(org)}
-								>
-									{isConnectPending ? (
-										<Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
-									) : (
-										<LinkIcon className="size-4" />
-									)}
-									{isConnectPending
-										? getConnectionActionPendingLabel(
-												connectionState,
-											)
-										: getConnectionActionLabel(
-												connectionState,
-											)}
-								</DropdownMenuItem>
-							)}
+							{hasOAuth &&
+								usesClientCredentials &&
+								connectionState !== "connected" && (
+									<DropdownMenuItem
+										disabled={
+											isRowLocked ||
+											isRefreshPending ||
+											!org.mapping?.entity_id
+										}
+										onSelect={() => onRefreshMapping(org)}
+									>
+										{isRefreshPending ? (
+											<Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+										) : (
+											<LinkIcon className="size-4" />
+										)}
+										{isRefreshPending
+											? "Getting token…"
+											: "Get Token"}
+									</DropdownMenuItem>
+								)}
+							{hasOAuth &&
+								!usesClientCredentials &&
+								connectionState !== "connected" && (
+									<DropdownMenuItem
+										disabled={
+											isRowLocked || isConnectPending
+										}
+										onSelect={() => onConnectMapping(org)}
+									>
+										{isConnectPending ? (
+											<Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+										) : (
+											<LinkIcon className="size-4" />
+										)}
+										{isConnectPending
+											? getConnectionActionPendingLabel(
+													connectionState,
+												)
+											: getConnectionActionLabel(
+													connectionState,
+												)}
+									</DropdownMenuItem>
+								)}
 							{hasOAuth && connectionState === "connected" && (
 								<DropdownMenuItem
 									disabled={isRowLocked || isRefreshPending}

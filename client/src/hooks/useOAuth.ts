@@ -378,6 +378,7 @@ export async function handleOAuthCallback(
 	code: string,
 	state?: string | null,
 	redirectUri?: string,
+	callbackUrlParams?: Record<string, string>,
 ) {
 	const { data, error } = await apiClient.POST(
 		"/api/oauth/callback/{connection_name}",
@@ -387,12 +388,14 @@ export async function handleOAuthCallback(
 				code,
 				state: state ?? null,
 				redirect_uri: redirectUri ?? null,
+				callback_url_params: callbackUrlParams ?? null,
 			},
 		},
 	);
 	if (error) {
+		const detail = (error as { detail?: unknown }).detail;
 		throw new Error(
-			`Failed to handle OAuth callback: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to handle OAuth callback: ${typeof detail === "string" ? detail : JSON.stringify(error)}`,
 		);
 	}
 	return data;
