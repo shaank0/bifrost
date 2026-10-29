@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TagsInput } from "@/components/ui/tags-input";
 import { SettingsToggleRow } from "@/components/shared/SettingsToggleRow";
 import { SettingsLoadError } from "@/components/shared/SettingsLoadError";
+import { getErrorMessage } from "@/lib/api-error";
 import { GLOBAL_TARGET } from "@/lib/authorization";
 import {
 	type AlertEmailSettings,
@@ -18,18 +19,11 @@ import {
 	useSendTestAlertEmail,
 	useUpdateAlertEmailSettings,
 } from "@/services/alerts";
+import { useFeatureEnabled } from "@/services/platformFeatures";
 import { useAuthorization } from "@/services/authorization";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_PORT = { starttls: 587, ssl: 465, none: 25 } as const;
-
-/** The API's error body (`{ detail }`) or a thrown Error, as text. */
-export function errorText(error: unknown, fallback: string): string {
-	if (error && typeof error === "object" && "detail" in error && typeof error.detail === "string") {
-		return error.detail;
-	}
-	return error instanceof Error ? error.message : fallback;
-}
 
 export function AlertsSettings() {
 	const settings = useAlertEmailSettings();
@@ -53,6 +47,7 @@ function AlertEmailForm({ saved }: { saved: AlertEmailSettings }) {
 	const canWrite = canAt("settings.readwrite", GLOBAL_TARGET);
 	const update = useUpdateAlertEmailSettings();
 	const sendTest = useSendTestAlertEmail();
+	const featureOn = useFeatureEnabled("alerts");
 	const [form, setForm] = useState<AlertEmailSettingsRequest>({
 		enabled: saved.enabled ?? false,
 		host: saved.host ?? "",
@@ -72,7 +67,7 @@ function AlertEmailForm({ saved }: { saved: AlertEmailSettings }) {
 			await update.mutateAsync({ body: form });
 			toast.success("Alert email settings saved");
 		} catch (error) {
-			toast.error("Couldn't save alert email settings", { description: errorText(error, "Unknown error") });
+			toast.error("Couldn't save alert email settings", { description: getErrorMessage(error, "Unknown error") });
 		}
 	}
 
@@ -81,7 +76,7 @@ function AlertEmailForm({ saved }: { saved: AlertEmailSettings }) {
 			const result = await sendTest.mutateAsync({});
 			toast.success("Test email sent", { description: `Sent to ${result.sent_to.join(", ")}` });
 		} catch (error) {
-			toast.error("Test email failed", { description: errorText(error, "Unknown error") });
+			toast.error("Test email failed", { description: getErrorMessage(error, "Unknown error") });
 		}
 	}
 
@@ -97,6 +92,15 @@ function AlertEmailForm({ saved }: { saved: AlertEmailSettings }) {
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-6">
+				{!featureOn && (
+					<p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+						Failure Alerts is off, so no alerts open and nothing is emailed. Turn it on under{" "}
+						<Link to="/settings/features" className="underline">
+							Features
+						</Link>
+						.
+					</p>
+				)}
 				<SettingsToggleRow
 					id="alert-email-enabled"
 					label="Send Alert Email"

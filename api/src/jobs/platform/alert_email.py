@@ -14,6 +14,7 @@ from src.models.orm.platform_jobs import PlatformJob
 from src.services import alert_email
 from src.services.alert_email import AlertMessage, SmtpSendError
 from src.services.alert_email_settings import AlertEmailSettingsService
+from src.services.platform_features import is_enabled
 
 JOB_TYPE = "alert.email"
 
@@ -37,7 +38,7 @@ async def run_alert_email(context: PlatformJobContext, payload: AlertEmailPayloa
         if alert.status == "resolved" or alert.emailed_at is not None:
             return {"sent": False, "reason": "The alert was already resolved or emailed"}
         settings = await AlertEmailSettingsService(db).smtp_settings()
-        if settings is None:
+        if settings is None or not await is_enabled("alerts", db):
             return {"sent": False, "reason": "Alert email is off"}
         public_url = (get_settings().public_url or "").rstrip("/")
         message = alert_email.alert_email(

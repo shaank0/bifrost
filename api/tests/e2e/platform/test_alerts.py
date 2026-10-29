@@ -9,6 +9,7 @@ from src.models.orm.alerts import Alert
 from src.models.orm.config import SystemConfig
 from src.models.orm.platform_jobs import PlatformJob
 from src.models.contracts.alerts import ALERT_EMAIL_CONFIG_CATEGORY
+from src.services import platform_features
 from src.services.alert_signals import AlertSignal
 from src.services.alerts import apply_signal, record_from_event
 
@@ -19,6 +20,16 @@ def _failure(subject: str, detail: str = "boom") -> AlertSignal:
     return AlertSignal(
         action="open", kind="workflow_failed", subject_key=subject, organization_id=None, title="nightly failed", detail=detail
     )
+
+
+@pytest.fixture
+async def alerts_feature(db_session):
+    """Turn the Failure Alerts feature on (it is off by default) and back off afterwards."""
+    await platform_features.set_features(db_session, {"alerts": True}, updated_by="test")
+    await db_session.commit()
+    yield
+    await platform_features.set_features(db_session, {"alerts": False}, updated_by="test")
+    await db_session.commit()
 
 
 class _Context:
@@ -71,7 +82,7 @@ async def test_repeat_failures_add_to_one_alert_until_a_success_resolves_it(db_s
     assert opened_new is True and reopened is not None and reopened.id != first.id
 
 
-async def test_an_unattended_failure_event_opens_an_alert_and_queues_its_email(db_session, email_on):
+async def test_an_unattended_failure_event_opens_an_alert_and_queues_its_email(db_session, email_on, alerts_feature):
     workflow_id = uuid4()
     try:
         body = {
@@ -97,7 +108,7 @@ async def test_an_unattended_failure_event_opens_an_alert_and_queues_its_email(d
         await db_session.commit()
 
 
-async def test_a_run_a_person_started_never_alerts(db_session):
+async def test_a_run_a_person_started_never_alerts(db_session, alerts_feature):
     workflow_id = uuid4()
     await record_from_event(
         "workflow.retry_exhausted",
@@ -106,6 +117,22 @@ async def test_a_run_a_person_started_never_alerts(db_session):
             "workflow": {"id": str(workflow_id), "name": "x"},
             "execution": {"id": str(uuid4())},
             "trigger": {"type": "manual"},
+            "error": {"type": "E", "message": "m"},
+        },
+    )
+    assert (await db_session.execute(select(Alert).where(Alert.workflow_id == workflow_id))).first() is None
+
+
+async def test_nothing_is_recorded_while_the_feature_is_off(db_session):
+    platform_features.clear_cache()
+    workflow_id = uuid4()
+    await record_from_event(
+        "workflow.retry_exhausted",
+        {
+            "organization": {"id": None},
+            "workflow": {"id": str(workflow_id), "name": "x"},
+            "execution": {"id": str(uuid4())},
+            "trigger": {"type": "event"},
             "error": {"type": "E", "message": "m"},
         },
     )
@@ -163,7 +190,7 @@ class TestAlertsApi:
         assert e2e_client.post("/api/alerts/email-settings/test", headers=headers).status_code == 409
 
 
-async def test_the_email_job_sends_once_and_records_it(db_session, email_on, monkeypatch):
+async def test_the_email_job_sends_once_and_records_it(db_session, email_on, alerts_feature, monkeypatch):
     from src.jobs.platform.alert_email import AlertEmailPayload, run_alert_email
     from src.services import alert_email
 
@@ -183,7 +210,7 @@ async def test_the_email_job_sends_once_and_records_it(db_session, email_on, mon
     assert alert.emailed_at is not None
 
 
-async def test_an_smtp_failure_fails_the_job_so_it_is_retried(db_session, email_on, monkeypatch):
+async def test_an_smtp_failure_fails_the_job_so_it_is_retried(db_session, email_on, alerts_feature, monkeypatch):
     from src.jobs.platform.alert_email import AlertEmailPayload, run_alert_email
     from src.jobs.platform.base import PlatformJobFailure
     from src.services import alert_email

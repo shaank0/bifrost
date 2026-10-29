@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertCircle, Check, CheckCheck, CircleCheck, Settings, TriangleAlert } from "lucide-react";
+import { AlertCircle, BellOff, Check, CheckCheck, CircleCheck, Settings, TriangleAlert } from "lucide-react";
 import { ListPageHeader } from "@/components/layout/ListPageHeader";
 import { PageScrollArea, PageWorkspace } from "@/components/layout/PageWorkspace";
 import { Alert as Callout, AlertDescription } from "@/components/ui/alert";
@@ -21,6 +21,7 @@ import {
 	useResolveAlert,
 } from "@/services/alerts";
 import { useAuthorization } from "@/services/authorization";
+import { useFeatureEnabled, usePlatformFeatures } from "@/services/platformFeatures";
 
 const VIEWS: { value: AlertView; label: string }[] = [
 	{ value: "unresolved", label: "Unresolved" },
@@ -33,9 +34,31 @@ export function Alerts() {
 	const { canAt } = useAuthorization();
 	const canManage = canAt("platform.readwrite", GLOBAL_TARGET);
 	const canConfigure = canAt("settings.read", GLOBAL_TARGET);
-	useAlertsLiveUpdates(true);
+	const features = usePlatformFeatures();
+	const featureOn = useFeatureEnabled("alerts");
+	useAlertsLiveUpdates(featureOn);
 
 	const items = alerts.data?.items ?? [];
+
+	if (features.data && !featureOn) {
+		return (
+			<PageWorkspace className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-6">
+				<ListPageHeader title="Alerts" />
+				<EmptyState
+					icon={BellOff}
+					title="Failure Alerts Is Off"
+					description="Turn it on under Settings → Features to be told when a scheduled or event-triggered workflow fails, or an integration needs reconnecting."
+					action={
+						canConfigure && (
+							<Button asChild>
+								<Link to="/settings/features">Open Features</Link>
+							</Button>
+						)
+					}
+				/>
+			</PageWorkspace>
+		);
+	}
 
 	return (
 		<PageWorkspace className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-6">

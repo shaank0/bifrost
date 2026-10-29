@@ -19,13 +19,14 @@ const mock = vi.hoisted(() => ({
 vi.mock("@/services/authorization", () => ({
 	useAuthorization: () => ({ canAt: () => true }),
 }));
+vi.mock("@/services/platformFeatures", () => ({ useFeatureEnabled: () => true }));
 vi.mock("@/services/alerts", () => ({
 	useAlertEmailSettings: () => ({ data: mock.saved, error: null, refetch: vi.fn() }),
 	useUpdateAlertEmailSettings: () => ({ mutateAsync: mock.save, isPending: false }),
 	useSendTestAlertEmail: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-import { AlertsSettings, errorText } from "./AlertsSettings";
+import { AlertsSettings } from "./AlertsSettings";
 
 describe("Alert email settings", () => {
 	it("keeps the saved password unless a new one is typed", async () => {
@@ -45,11 +46,4 @@ describe("Alert email settings", () => {
 		expect(screen.getByRole("button", { name: "Send Test Email" })).toBeDisabled();
 	});
 
-	it("shows the API's reason for a failure", () => {
-		expect(errorText({ detail: "To turn alert email on, set an SMTP server" }, "x")).toBe(
-			"To turn alert email on, set an SMTP server",
-		);
-		expect(errorText(new Error("network"), "x")).toBe("network");
-		expect(errorText(42, "fallback")).toBe("fallback");
-	});
 });
