@@ -11409,68 +11409,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/me/mcp-connections/{connection_id}/connect": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Initiate per-user OAuth flow
-         * @description Per-user delegated connect. Returns the vendor's authorize URL with state encoded for the *user* flow — the callback writes a ``user_mcp_credentials`` row instead of touching ``mcp_connections.service_oauth_token_id``.
-         *
-         *     Per-user delegation is only meaningful for ``authorization_code`` providers; ``client_credentials`` connections are rejected with 400.
-         */
-        get: operations["connect_user_credential_api_me_mcp_connections__connection_id__connect_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/mcp-connections": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List the caller's per-user MCP credentials
-         * @description Returns one row per MCP connection the caller has personally OAuth'd. Includes the OAuth token's expiry so the UI can render 'expires in N days'. Does not return the bearer token itself.
-         */
-        get: operations["list_user_credentials_api_me_mcp_connections_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/mcp-connections/{connection_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Disconnect (forget) the caller's per-user credential
-         * @description Deletes the caller's user_mcp_credentials row for this connection and the underlying oauth_tokens row. Idempotent — returns 204 whether or not a credential existed.
-         */
-        delete: operations["disconnect_user_credential_api_me_mcp_connections__connection_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/mcp-gateway/me/tools": {
         parameters: {
             query?: never;
@@ -11536,6 +11474,68 @@ export interface paths {
         post?: never;
         /** Remove a role's gateway grant on a connection */
         delete: operations["delete_gateway_grant_api_mcp_gateway_connections__connection_id__grants__role_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/mcp-connections/{connection_id}/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Initiate per-user OAuth flow
+         * @description Per-user delegated connect. Returns the vendor's authorize URL with state encoded for the *user* flow — the callback writes a ``user_mcp_credentials`` row instead of touching ``mcp_connections.service_oauth_token_id``.
+         *
+         *     Per-user delegation is only meaningful for ``authorization_code`` providers; ``client_credentials`` connections are rejected with 400.
+         */
+        get: operations["connect_user_credential_api_me_mcp_connections__connection_id__connect_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/mcp-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the caller's per-user MCP credentials
+         * @description Returns one row per MCP connection the caller has personally OAuth'd. Includes the OAuth token's expiry so the UI can render 'expires in N days'. Does not return the bearer token itself.
+         */
+        get: operations["list_user_credentials_api_me_mcp_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/mcp-connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect (forget) the caller's per-user credential
+         * @description Deletes the caller's user_mcp_credentials row for this connection and the underlying oauth_tokens row. Idempotent — returns 204 whether or not a credential existed.
+         */
+        delete: operations["disconnect_user_credential_api_me_mcp_connections__connection_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -52584,86 +52584,6 @@ export interface operations {
             };
         };
     };
-    connect_user_credential_api_me_mcp_connections__connection_id__connect_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MCPConnectAuthorizeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_user_credentials_api_me_mcp_connections_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserMCPCredentialPublic"][];
-                };
-            };
-        };
-    };
-    disconnect_user_credential_api_me_mcp_connections__connection_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_my_gateway_tools_api_mcp_gateway_me_tools_get: {
         parameters: {
             query?: never;
@@ -52841,6 +52761,86 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MCPGatewayConnectionPublic"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_user_credential_api_me_mcp_connections__connection_id__connect_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPConnectAuthorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_user_credentials_api_me_mcp_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMCPCredentialPublic"][];
+                };
+            };
+        };
+    };
+    disconnect_user_credential_api_me_mcp_connections__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
