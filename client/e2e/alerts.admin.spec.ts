@@ -1,9 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Failure alerts", () => {
-	test("an admin sets up alert email and opens the alerts page", async ({
+	test("an admin turns alerts on, sets up alert email and opens the alerts page", async ({
 		page,
 	}) => {
+		await page.goto("/settings/features");
+		const feature = page.getByRole("switch", { name: "Failure Alerts" });
+		await expect(feature).not.toBeChecked();
+		await feature.click();
+		await expect(page.getByText("Failure Alerts turned on")).toBeVisible();
+
 		await page.goto("/settings/alerts");
 		await expect(page.getByText("Alert Email", { exact: true })).toBeVisible();
 
@@ -36,5 +42,12 @@ test.describe("Failure alerts", () => {
 			page.getByRole("heading", { name: "Alerts", exact: true }),
 		).toBeVisible();
 		await expect(page.getByRole("tab", { name: "Unresolved" })).toBeVisible();
+
+		// Off again: the page says so instead of listing alerts.
+		await page.goto("/settings/features");
+		await page.getByRole("switch", { name: "Failure Alerts" }).click();
+		await expect(page.getByText("Failure Alerts turned off")).toBeVisible();
+		await page.goto("/alerts");
+		await expect(page.getByText("Failure Alerts Is Off")).toBeVisible();
 	});
 });

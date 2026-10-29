@@ -6,12 +6,17 @@ const mock = vi.hoisted(() => ({
 	items: [] as unknown[],
 	canManage: true,
 	acknowledge: vi.fn(() => Promise.resolve()),
+	featureOn: true,
 }));
 
 vi.mock("@/services/authorization", () => ({
 	useAuthorization: () => ({
 		canAt: (permission: string) => permission !== "platform.readwrite" || mock.canManage,
 	}),
+}));
+vi.mock("@/services/platformFeatures", () => ({
+	usePlatformFeatures: () => ({ data: { features: [] } }),
+	useFeatureEnabled: () => mock.featureOn,
 }));
 vi.mock("@/services/alerts", () => ({
 	useAlerts: () => ({ data: { items: mock.items, total: mock.items.length }, isLoading: false, error: null }),
@@ -67,5 +72,13 @@ describe("Alerts page", () => {
 		renderWithProviders(<Alerts />);
 		expect(screen.queryByRole("button", { name: "Acknowledge" })).not.toBeInTheDocument();
 		mock.canManage = true;
+	});
+
+	it("points to the Features switch while Failure Alerts is off", () => {
+		mock.featureOn = false;
+		renderWithProviders(<Alerts />);
+		expect(screen.getByText("Failure Alerts Is Off")).toBeVisible();
+		expect(screen.getByRole("link", { name: "Open Features" })).toHaveAttribute("href", "/settings/features");
+		mock.featureOn = true;
 	});
 });

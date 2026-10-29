@@ -94,6 +94,7 @@ from src.routers.roles import router as roles_router
 from src.routers.run_retention import router as run_retention_router
 from src.routers.scheduler_diagnostics import router as scheduler_diagnostics_router
 from src.routers.alerts import router as alerts_router
+from src.routers.platform_features import router as platform_features_router
 from src.routers.schedules import router as schedules_router
 from src.routers.sdk_modules import router as sdk_modules_router
 from src.routers.sdk_runtime import router as sdk_runtime_router
@@ -455,6 +456,7 @@ def create_app() -> FastAPI:
     app.include_router(platform_jobs_router)
     app.include_router(scheduler_diagnostics_router)
     app.include_router(alerts_router)
+    app.include_router(platform_features_router)
     app.include_router(oauth_connections_router)
     app.include_router(endpoints_router)
     app.include_router(cli_router)

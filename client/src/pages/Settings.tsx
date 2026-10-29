@@ -24,6 +24,7 @@ import { RequiredInstructionsSettings } from "@/pages/settings/RequiredInstructi
 import { MCP } from "@/pages/settings/MCP";
 import { Maintenance } from "@/pages/settings/Maintenance";
 import { AlertsSettings } from "@/pages/settings/AlertsSettings";
+import { FeaturesSettings } from "@/pages/settings/FeaturesSettings";
 import { KubernetesSettings } from "@/pages/settings/KubernetesSettings";
 import { getKubernetesStatus } from "@/services/kubernetes";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ import {
 	Bot,
 	BrainCircuit,
 	BellRing,
+	ToggleRight,
 	ChevronDown,
 	Container,
 	Database,
@@ -144,6 +146,12 @@ const settingsSections: SettingsSection[] = [
 				label: "Branding",
 				icon: Palette,
 				content: Branding,
+			},
+			{
+				value: "features",
+				label: "Features",
+				icon: ToggleRight,
+				content: FeaturesSettings,
 			},
 			{
 				value: "alerts",

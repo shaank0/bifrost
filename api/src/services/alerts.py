@@ -1,5 +1,7 @@
 """Failure alerts: recorded from built-in platform events, read and acknowledged by platform admins.
 
+An optional platform feature (key ``alerts``): while it is off, nothing is recorded or emailed.
+
 ``record_from_event`` is called for every built-in event (see
 ``events.builtins._emit``); ``alert_signals`` decides which ones matter. When an
 alert opens and alert email is on, an ``alert.email`` platform job sends it.
@@ -82,6 +84,10 @@ async def record_from_event(topic: str, body: dict[str, Any]) -> None:
     try:
         signal = signal_from_event(topic, body)
         if signal is None:
+            return
+        from src.services.platform_features import is_enabled
+
+        if not await is_enabled("alerts"):
             return
         from src.core.database import get_session_factory
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test-utils";
 
-const mock = vi.hoisted(() => ({ canPlatformRead: false }));
+const mock = vi.hoisted(() => ({ canPlatformRead: false, alertsOn: true }));
 
 vi.mock("@/services/authorization", () => ({
 	useAuthorization: () => ({
@@ -15,6 +15,9 @@ vi.mock("./VersionUpdateBanner", () => ({
 }));
 vi.mock("./FileActivityIndicator", () => ({
 	FileActivityIndicator: () => <div>File activity</div>,
+}));
+vi.mock("@/services/platformFeatures", () => ({
+	useFeatureEnabled: () => mock.alertsOn,
 }));
 vi.mock("./AlertsIndicator", () => ({
 	AlertsIndicator: () => <div>Alerts</div>,
@@ -37,5 +40,15 @@ describe("HeaderStatusIndicators", () => {
 
 		expect(screen.queryByText("File activity")).not.toBeInTheDocument();
 		expect(screen.queryByText("Alerts")).not.toBeInTheDocument();
+	});
+
+	it("leaves alerts out while the Failure Alerts feature is off", () => {
+		mock.canPlatformRead = true;
+		mock.alertsOn = false;
+		renderWithProviders(<HeaderStatusIndicators />);
+
+		expect(screen.getByText("File activity")).toBeVisible();
+		expect(screen.queryByText("Alerts")).not.toBeInTheDocument();
+		mock.alertsOn = true;
 	});
 });
