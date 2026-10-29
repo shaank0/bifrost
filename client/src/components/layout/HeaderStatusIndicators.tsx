@@ -2,6 +2,7 @@ import { GLOBAL_TARGET } from "@/lib/authorization";
 import { useAuthorization } from "@/services/authorization";
 import { VersionUpdateBanner } from "./VersionUpdateBanner";
 import { FileActivityIndicator } from "./FileActivityIndicator";
+import { AlertsIndicator } from "./AlertsIndicator";
 
 export function HeaderStatusIndicators() {
 	const authorization = useAuthorization();
@@ -11,6 +12,7 @@ export function HeaderStatusIndicators() {
 		<>
 			<VersionUpdateBanner />
 			{canReadActivity && <FileActivityIndicator />}
+			{canReadActivity && <AlertsIndicator />}
 		</>
 	);
 }

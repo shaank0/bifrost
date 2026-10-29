@@ -4321,6 +4321,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List failure alerts */
+        get: operations["list_alerts_api_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count unresolved failure alerts */
+        get: operations["count_alerts_api_alerts_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/{alert_id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acknowledge a failure alert */
+        post: operations["acknowledge_alert_api_alerts__alert_id__acknowledge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/{alert_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve a failure alert by hand */
+        post: operations["resolve_alert_api_alerts__alert_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/email-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get alert email settings */
+        get: operations["get_email_settings_api_alerts_email_settings_get"];
+        /** Set alert email settings */
+        put: operations["set_email_settings_api_alerts_email_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/email-settings/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test alert email
+         * @description Send a test message with the saved settings. Turn alert email on first.
+         */
+        post: operations["send_test_email_api_alerts_email_settings_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/oauth/connections/{connection_name}": {
         parameters: {
             query?: never;
@@ -13160,6 +13266,156 @@ export interface components {
             output_tokens: number;
             /** Ai Cost */
             ai_cost?: string;
+        };
+        /**
+         * AlertCountResponse
+         * @description Alerts nobody has looked at yet (open), and all unresolved ones (open + acknowledged).
+         */
+        AlertCountResponse: {
+            /** Open */
+            open: number;
+            /** Unresolved */
+            unresolved: number;
+        };
+        /** AlertEmailSettingsPublic */
+        AlertEmailSettingsPublic: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Host
+             * @default
+             */
+            host: string;
+            /**
+             * Port
+             * @default 587
+             */
+            port: number;
+            /**
+             * Security
+             * @default starttls
+             * @enum {string}
+             */
+            security: "starttls" | "ssl" | "none";
+            /**
+             * Username
+             * @default
+             */
+            username: string;
+            /**
+             * Password Set
+             * @default false
+             */
+            password_set: boolean;
+            /**
+             * From Address
+             * @default
+             */
+            from_address: string;
+            /** Recipients */
+            recipients?: string[];
+        };
+        /** AlertEmailSettingsRequest */
+        AlertEmailSettingsRequest: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Host
+             * @default
+             */
+            host: string;
+            /**
+             * Port
+             * @default 587
+             */
+            port: number;
+            /**
+             * Security
+             * @default starttls
+             * @enum {string}
+             */
+            security: "starttls" | "ssl" | "none";
+            /**
+             * Username
+             * @default
+             */
+            username: string;
+            /** Password */
+            password?: string | null;
+            /**
+             * From Address
+             * @default
+             */
+            from_address: string | "";
+            /** Recipients */
+            recipients?: string[];
+        };
+        /** AlertEmailTestResponse */
+        AlertEmailTestResponse: {
+            /** Sent To */
+            sent_to: string[];
+        };
+        /** AlertListResponse */
+        AlertListResponse: {
+            /** Items */
+            items: components["schemas"]["AlertPublic"][];
+            /** Total */
+            total: number;
+        };
+        /** AlertPublic */
+        AlertPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "workflow_failed" | "integration_refresh_failed";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "acknowledged" | "resolved";
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+            /** Organization Id */
+            organization_id: string | null;
+            /** Organization Name */
+            organization_name: string | null;
+            /** Workflow Id */
+            workflow_id: string | null;
+            /** Integration Id */
+            integration_id: string | null;
+            /** Last Execution Id */
+            last_execution_id: string | null;
+            /** Occurrences */
+            occurrences: number;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Acknowledged At */
+            acknowledged_at: string | null;
+            /** Acknowledged By */
+            acknowledged_by: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Emailed At */
+            emailed_at: string | null;
         };
         /**
          * AppDependencyIssue
@@ -38756,6 +39012,194 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_alerts_api_alerts_get: {
+        parameters: {
+            query?: {
+                view?: "unresolved" | "open" | "acknowledged" | "resolved";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_alerts_api_alerts_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertCountResponse"];
+                };
+            };
+        };
+    };
+    acknowledge_alert_api_alerts__alert_id__acknowledge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_alert_api_alerts__alert_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_email_settings_api_alerts_email_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertEmailSettingsPublic"];
+                };
+            };
+        };
+    };
+    set_email_settings_api_alerts_email_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertEmailSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertEmailSettingsPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_test_email_api_alerts_email_settings_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertEmailTestResponse"];
                 };
             };
         };
