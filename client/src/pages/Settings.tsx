@@ -23,12 +23,14 @@ import { MemorySettings } from "@/pages/settings/MemorySettings";
 import { RequiredInstructionsSettings } from "@/pages/settings/RequiredInstructionsSettings";
 import { MCP } from "@/pages/settings/MCP";
 import { Maintenance } from "@/pages/settings/Maintenance";
+import { AlertsSettings } from "@/pages/settings/AlertsSettings";
 import { KubernetesSettings } from "@/pages/settings/KubernetesSettings";
 import { getKubernetesStatus } from "@/services/kubernetes";
 import { cn } from "@/lib/utils";
 import {
 	Bot,
 	BrainCircuit,
+	BellRing,
 	ChevronDown,
 	Container,
 	Database,
@@ -142,6 +144,12 @@ const settingsSections: SettingsSection[] = [
 				label: "Branding",
 				icon: Palette,
 				content: Branding,
+			},
+			{
+				value: "alerts",
+				label: "Alerts",
+				icon: BellRing,
+				content: AlertsSettings,
 			},
 			{
 				value: "maintenance",

@@ -41,6 +41,12 @@ def test_the_next_unattended_success_resolves_it():
     assert (signal.action, signal.subject_key) == ("resolve", "workflow:wf-1")
 
 
+def test_a_success_someone_ran_by_hand_also_resolves_it():
+    body = {"organization": ORG, "workflow": {"id": "wf-1"}, "execution": {"id": "ex-3"}, "trigger": {"type": "manual"}}
+    signal = signal_from_event("workflow.completed", body)
+    assert signal is not None and signal.action == "resolve"
+
+
 def test_a_script_without_a_workflow_does_not_alert():
     body = _workflow_body()
     body["workflow"] = {"id": None, "name": None}

@@ -346,6 +346,7 @@ type WebSocketMessage =
 	| { type: "subscribed"; channel: string }
 	| { type: "unsubscribed"; channel: string }
 	| { type: "pong" }
+	| { type: "alerts_changed" }
 	| { type: "execution_update"; executionId: string; [key: string]: unknown }
 	| { type: "execution_log"; executionId: string; [key: string]: unknown }
 	| { type: "service_log"; service_id: string; [key: string]: unknown }
@@ -480,6 +481,7 @@ class WebSocketService {
 		new Set<PlatformJobUpdateCallback>();
 	private poolMessageCallbacks = new Set<PoolMessageCallback>();
 	private fileActivityCallbacks = new Set<FileActivityCallback>();
+	private alertsChangedCallbacks = new Set<() => void>();
 	private agentRunUpdateCallbacks: Set<AgentRunUpdateCallback> = new Set();
 	private summaryBackfillCallbacks: Map<
 		string,
@@ -796,6 +798,9 @@ class WebSocketService {
 				}
 				break;
 			}
+			case "alerts_changed":
+				this.alertsChangedCallbacks.forEach((cb) => cb());
+				break;
 			case "summary_backfill_update": {
 				const bfUpdate = message as unknown as SummaryBackfillUpdate;
 				const jobCallbacks = this.summaryBackfillCallbacks.get(
@@ -1352,6 +1357,16 @@ class WebSocketService {
 		this.allPlatformJobUpdateCallbacks.add(callback);
 		return () => {
 			this.allPlatformJobUpdateCallbacks.delete(callback);
+		};
+	}
+
+	/**
+	 * Called whenever a failure alert opens, changes or resolves (the "alerts" channel)
+	 */
+	onAlertsChanged(callback: () => void): () => void {
+		this.alertsChangedCallbacks.add(callback);
+		return () => {
+			this.alertsChangedCallbacks.delete(callback);
 		};
 	}
 

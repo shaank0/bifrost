@@ -44,6 +44,9 @@ const Home = lazyWithReload(() =>
 const Dashboard = lazyWithReload(() =>
 	import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })),
 );
+const Alerts = lazyWithReload(() =>
+	import("@/pages/Alerts").then((m) => ({ default: m.Alerts })),
+);
 const Config = lazyWithReload(() =>
 	import("@/pages/Config").then((m) => ({ default: m.Config })),
 );
@@ -407,6 +410,16 @@ const routeElements = (
 						}}
 					>
 						<ProductUpdates />
+					</ProtectedRoute>
+				}
+			/>
+			<Route
+				path="alerts"
+				element={
+					<ProtectedRoute
+						requirePermission={{ permission: "platform.read", at: "global" }}
+					>
+						<Alerts />
 					</ProtectedRoute>
 				}
 			/>

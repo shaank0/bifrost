@@ -7,7 +7,7 @@ its token without someone reconnecting it. Runs a person started show their
 failure to that person, so they never alert.
 
 One alert exists per subject at a time. Repeated failures add to it; the next
-success resolves it.
+success of any kind (scheduled or run by hand) resolves it.
 """
 
 from __future__ import annotations
@@ -42,7 +42,11 @@ def _org_id(body: dict[str, Any]) -> str | None:
 def _workflow_signal(topic: str, body: dict[str, Any]) -> AlertSignal | None:
     workflow = body.get("workflow") or {}
     workflow_id = workflow.get("id")
-    if not workflow_id or (body.get("trigger") or {}).get("type") != "event":
+    if not workflow_id:
+        return None
+    # Any success shows the workflow works again, including a run someone started after fixing it;
+    # only an unattended failure is news.
+    if topic != "workflow.completed" and (body.get("trigger") or {}).get("type") != "event":
         return None
     name = workflow.get("name") or "A workflow"
     common = {
