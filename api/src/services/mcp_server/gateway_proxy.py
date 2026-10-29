@@ -1,18 +1,17 @@
-"""FastMCP adapter for the ``/mcp/gateway`` proxy surface.
+"""MCP SDK adapter for the ``/mcp/gateway`` proxy surface.
 
-Translates between FastMCP's tool objects and the connection-backed tools
+Translates between the MCP SDK's tool objects and the connection-backed tools
 served by ``src.services.mcp_gateway.service``. The tool list is built per
 request from the caller's current role grants; nothing is registered on the
-FastMCP server itself.
+SDK server itself.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastmcp.exceptions import ToolError
-from fastmcp.tools import Tool, ToolResult
-from mcp.types import ContentBlock, ToolAnnotations
+from mcp.server.fastmcp.exceptions import ToolError
+from mcp.types import CallToolResult, ContentBlock, Tool, ToolAnnotations
 from pydantic import TypeAdapter
 
 from src.core.database import get_db_context
@@ -28,11 +27,11 @@ from src.services.mcp_server.server import _get_context_from_token
 _content_blocks = TypeAdapter(list[ContentBlock])
 
 
-def _to_fastmcp_tool(tool: GatewayTool) -> Tool:
+def _to_mcp_tool(tool: GatewayTool) -> Tool:
     return Tool(
         name=tool.name,
         description=tool.description,
-        parameters=tool.input_schema,
+        inputSchema=tool.input_schema,
         annotations=ToolAnnotations(
             readOnlyHint=tool.category == "read",
             destructiveHint=tool.category in ("delete", "dangerous"),
@@ -43,7 +42,7 @@ def _to_fastmcp_tool(tool: GatewayTool) -> Tool:
 async def list_proxy_tools() -> list[Tool]:
     async with get_db_context() as db:
         caller = await load_mcp_caller(db, _get_context_from_token())
-        return [_to_fastmcp_tool(tool) for tool in await list_gateway_tools(db, caller)]
+        return [_to_mcp_tool(tool) for tool in await list_gateway_tools(db, caller)]
 
 
 def _envelope_text(envelope: dict[str, Any]) -> str:
@@ -55,7 +54,9 @@ def _envelope_text(envelope: dict[str, Any]) -> str:
     return "\n".join(text for text in texts if text) or "The tool reported an error"
 
 
-async def call_proxy_tool(name: str, arguments: dict[str, Any]) -> ToolResult:
+async def call_proxy_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
+    """Call a gateway tool, keeping the remote server's content and structured content as they are.
+    A failure raises ToolError, which the SDK reports as an error result."""
     async with get_db_context() as db:
         caller = await load_mcp_caller(db, _get_context_from_token())
         try:
@@ -66,7 +67,8 @@ async def call_proxy_tool(name: str, arguments: dict[str, Any]) -> ToolResult:
             raise ToolError(exc.message) from exc
     if envelope.get("is_error"):
         raise ToolError(_envelope_text(envelope))
-    return ToolResult(
+    structured = envelope.get("structured_content")
+    return CallToolResult(
         content=_content_blocks.validate_python(envelope.get("content") or []),
-        structured_content=envelope.get("structured_content"),
+        structuredContent=structured if isinstance(structured, dict) else None,
     )

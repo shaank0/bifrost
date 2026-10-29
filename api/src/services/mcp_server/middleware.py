@@ -45,8 +45,8 @@ class ToolFilterMiddleware:
 
     On ``/mcp/gateway`` (the connection proxy surface):
     - on_list_tools: Returns the caller's granted connection tools
-    - on_call_tool: Dispatches to the connection without reaching FastMCP's
-      own tool registry
+    - on_call_tool: Requires an authenticated user; the server then hands the
+      call to the gateway, which checks the caller's grants
     """
 
     async def filter_tools(self, all_tools: list) -> list:
@@ -187,9 +187,8 @@ class ToolFilterMiddleware:
         user_email = token.claims.get("email", "unknown")
 
         if is_gateway_request():
-            from src.services.mcp_server.gateway_proxy import call_proxy_tool
-
-            return await call_proxy_tool(tool_name, context.message.arguments or {})
+            # The gateway service checks each call against the caller's grants itself.
+            return await call_next(context)
 
         agent_id = _get_agent_id_from_scope()
         if agent_id is None:

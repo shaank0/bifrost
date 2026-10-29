@@ -27,11 +27,9 @@ _GATEWAY_PATH_RE = re.compile(r"^(/mcp)/gateway(/.*)?$")
 
 
 def is_gateway_request() -> bool:
-    """Whether the current FastMCP request came in on /mcp/gateway."""
-    try:
-        return bool(get_http_request().scope.get("mcp_gateway"))
-    except RuntimeError:
-        return False
+    """Whether the current MCP request came in on /mcp/gateway."""
+    scope = _REQUEST_SCOPE.get()
+    return bool(scope and scope.get("mcp_gateway"))
 
 
 def get_scoped_agent_id() -> UUID | None:

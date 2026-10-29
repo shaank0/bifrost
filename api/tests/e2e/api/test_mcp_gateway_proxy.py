@@ -15,7 +15,7 @@ from uuid import uuid4
 
 import pytest
 import uvicorn
-from fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 
 from shared.builtin_roles import USER_ROLE_ID
 
@@ -24,19 +24,21 @@ MCP_HEADERS = {"Accept": "application/json, text/event-stream"}
 
 
 def _downstream_app():
-    server = FastMCP("tickets")
+    # host 0.0.0.0: the SDK only turns on DNS-rebinding protection (which refuses the
+    # runner's container address as Host) for a server bound to localhost.
+    server = FastMCP("tickets", host="0.0.0.0", json_response=True, stateless_http=True, streamable_http_path="/mcp")
 
-    @server.tool
+    @server.tool()
     def get_ticket(ticket_id: int) -> str:
         """Get a ticket by id."""
         return f"ticket {ticket_id} is open"
 
-    @server.tool
+    @server.tool()
     def delete_ticket(ticket_id: int) -> str:
         """Delete a ticket."""
         return f"deleted {ticket_id}"
 
-    app = server.http_app(path="/mcp", json_response=True, stateless_http=True)
+    app = server.streamable_http_app()
 
     async def require_api_key(scope, receive, send):
         if scope["type"] == "http" and dict(scope["headers"]).get(b"x-api-key") != API_KEY.encode():
@@ -45,7 +47,6 @@ def _downstream_app():
             return
         await app(scope, receive, send)
 
-    require_api_key.lifespan = app.lifespan  # type: ignore[attr-defined]
     return app, require_api_key
 
 

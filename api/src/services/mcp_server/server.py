@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
 from src.services.mcp_server.agent_scope import (
     get_scoped_agent_id as _get_agent_id_from_scope,
+    is_gateway_request,
 )
 from src.services.mcp_server.tools import (
     TOOL_MODULES,
@@ -303,6 +304,13 @@ class BifrostSDKServer(FastMCP):
         from src.services.mcp_server.middleware import ToolFilterMiddleware
 
         await ToolFilterMiddleware().authorize_tool_call(name)
+        if is_gateway_request():
+            # /mcp/gateway serves connection tools that aren't registered on this server. The SDK
+            # passes a CallToolResult straight through, as it does for workflow tools.
+            from src.services.mcp_server.gateway_proxy import call_proxy_tool
+
+            result: Any = await call_proxy_tool(name, arguments)
+            return result
         return await super().call_tool(name, arguments)
 
 
