@@ -98,6 +98,10 @@ async def _emit(
             exc_info=True,
         )
 
+    from src.services.alerts import record_from_event
+
+    await record_from_event(topic, body)
+
 
 def _trigger_from_event_context(event: dict[str, Any] | None) -> dict[str, Any]:
     if not event:

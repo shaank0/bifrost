@@ -986,7 +986,7 @@ async def _delivery_allowed(user: UserPrincipal, channel: str, payload: dict[str
         return await can_access_conversation_current(user, channel.split(":", 1)[1])
     if channel.startswith("event-source:"):
         return await can_access_event_source(user, channel.split(":", 1)[1])
-    if channel in {"package:install", "file-activity", "platform_workers"} or channel.startswith(("git:", "reindex:", "summary-backfill:")):
+    if channel in {"package:install", "file-activity", "platform_workers", "alerts"} or channel.startswith(("git:", "reindex:", "summary-backfill:")):
         return await can_access_global_platform(user)
     if channel.startswith("agent-run:"):
         return await can_access_agent_run(user, channel.split(":", 1)[1])
@@ -1224,8 +1224,8 @@ async def websocket_connect(
             if await can_access_global_platform(user):
                 access_checks.note_power("platform.read", None, subject=f"channel:{channel}")
                 allowed_channels.append(channel)
-        elif channel == "platform_workers":
-            # Platform workers channel - diagnostics, platform admins only
+        elif channel in ("platform_workers", "alerts"):
+            # Platform workers (diagnostics) and failure alerts - platform admins only
             if await can_access_global_platform(user):
                 access_checks.note_power("platform.read", None, subject=f"channel:{channel}")
                 allowed_channels.append(channel)
@@ -1485,8 +1485,8 @@ async def websocket_connect(
                                 "channel": channel,
                                 "message": "Access denied"
                             })
-                    elif channel == "platform_workers":
-                        # Platform workers channel - diagnostics, platform admins only
+                    elif channel in ("platform_workers", "alerts"):
+                        # Platform workers (diagnostics) and failure alerts - platform admins only
                         if await can_access_global_platform(user):
                             access_checks.note_power("platform.read", None, subject=f"channel:{channel}")
                             if channel not in manager.connections:

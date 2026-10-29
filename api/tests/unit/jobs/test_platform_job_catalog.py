@@ -13,9 +13,10 @@ def test_catalog_metadata_matches_each_materialized_definition() -> None:
 
     metadata = list_platform_job_metadata()
 
-    assert len(metadata) == 23
+    assert len(metadata) == 24
     assert {item.job_type for item in metadata} == {
         "agent.summary_backfill",
+        "alert.email",
         "application.deploy",
         "application.publish",
         "application.sdk_update",

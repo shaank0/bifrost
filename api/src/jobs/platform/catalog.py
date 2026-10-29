@@ -220,6 +220,22 @@ _METADATA = MappingProxyType(
                 description="Pulls and compiles connected Solution apps in an isolated pod.",
             ),
             _metadata(
+                "alert.email",
+                "src.jobs.platform.alert_email",
+                "ALERT_EMAIL_DEFINITION",
+                # Retries cover a mail server that is briefly down. Not on runner loss: the email may
+                # already have gone out.
+                PlatformJobPolicy(
+                    120,
+                    max_attempts=3,
+                    retry_on_failure=True,
+                    retry_on_runner_loss=False,
+                    min_memory_headroom_mb=64,
+                ),
+                display_name="Alert Email",
+                description="Emails a new failure alert to the platform alert recipients.",
+            ),
+            _metadata(
                 "embedding.reindex",
                 "src.jobs.platform.embedding_reindex",
                 "EMBEDDING_REINDEX_DEFINITION",
