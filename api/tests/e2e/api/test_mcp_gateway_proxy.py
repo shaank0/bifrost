@@ -105,9 +105,23 @@ def _mcp(e2e_client, user, method: str, params: dict) -> dict:
     return response.json()
 
 
+@pytest.fixture
+def gateway_feature(e2e_client, platform_admin):
+    """The MCP Gateway is an optional feature, off by default: on for the test, off after."""
+    def switch(on: bool) -> None:
+        response = e2e_client.put(
+            "/api/settings/features", headers=platform_admin.headers, json={"enabled": {"mcp_gateway": on}}
+        )
+        assert response.status_code == 200, response.text
+
+    switch(True)
+    yield
+    switch(False)
+
+
 @pytest.mark.e2e
 def test_org_user_calls_granted_tools_through_the_gateway(
-    e2e_client, platform_admin, org1_user, gateway_connection
+    e2e_client, platform_admin, org1_user, gateway_connection, gateway_feature
 ) -> None:
     admin = platform_admin.headers
     connection_id = gateway_connection["id"]

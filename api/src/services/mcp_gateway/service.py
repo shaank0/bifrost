@@ -46,6 +46,7 @@ from src.services.mcp_gateway.access import (
     roles_in_organization,
 )
 from src.services.mcp_gateway.classifier import ToolCategory, classify_tool
+from src.services.platform_features import is_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +59,10 @@ _rate_limiter = RateLimiter(max_requests=GATEWAY_CALLS_PER_MINUTE, window_second
 class GatewayCallError(Exception):
     """A gateway call that failed before or during dispatch.
 
-    ``code`` is one of ``not_found`` (unknown or not granted — the two are
-    indistinguishable to the caller), ``rate_limited``, ``needs_reauth``,
-    ``misconfigured``, or ``dispatch_failed``.
+    ``code`` is one of ``disabled`` (the MCP Gateway feature is off),
+    ``not_found`` (unknown or not granted — the two are indistinguishable to
+    the caller), ``rate_limited``, ``needs_reauth``, ``misconfigured``, or
+    ``dispatch_failed``.
     """
 
     def __init__(self, code: str, message: str, connection_id: UUID | None = None) -> None:
@@ -133,7 +135,9 @@ def _served(rules: list[Any] | None, tool_name: str) -> bool:
 
 
 async def list_gateway_tools(db: AsyncSession, caller: Caller) -> list[GatewayTool]:
-    """Every gateway tool the caller may see, ordered by name."""
+    """Every gateway tool the caller may see, ordered by name. None while the feature is off."""
+    if not await is_enabled("mcp_gateway", db):
+        return []
     organization_id = _gateway_organization(caller)
     if organization_id is None:
         return []
@@ -234,6 +238,8 @@ async def call_gateway_tool(
         details["category"] = classify_tool(parts[1])
     connection_id: UUID | None = None
     try:
+        if not await is_enabled("mcp_gateway", db):
+            raise GatewayCallError("disabled", "The MCP gateway is turned off in Settings → Features")
         connection, row = await _resolve_call_target(db, caller, name)
         connection_id = connection.id
         try:

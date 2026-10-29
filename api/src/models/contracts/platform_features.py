@@ -21,6 +21,15 @@ PLATFORM_FEATURES: dict[str, PlatformFeatureInfo] = {
     feature.key: feature
     for feature in (
         PlatformFeatureInfo(
+            key="mcp_gateway",
+            label="MCP Gateway",
+            description=(
+                "Serve the tools of MCP connections marked for the gateway on /mcp/gateway, so AI "
+                "clients reach each organization's connections through Bifrost with per-role access. "
+                "Off: the gateway serves no tools and the Gateway section is hidden on connections."
+            ),
+        ),
+        PlatformFeatureInfo(
             key="alerts",
             label="Failure Alerts",
             description=(

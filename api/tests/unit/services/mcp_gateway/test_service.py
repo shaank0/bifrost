@@ -34,6 +34,14 @@ from src.services.mcp_gateway.service import (
 )
 
 DISPATCH = "src.services.mcp_gateway.service.mcp_dispatch.invoke"
+FEATURE = "src.services.mcp_gateway.service.is_enabled"
+
+
+@pytest.fixture(autouse=True)
+def gateway_feature_on():
+    """The MCP Gateway is an optional feature, off by default; these tests run with it on."""
+    with patch(FEATURE, AsyncMock(return_value=True)) as enabled:
+        yield enabled
 
 
 async def _org(db: AsyncSession) -> Organization:
@@ -79,8 +87,10 @@ async def _connection(
             MCPConnectionTool(
                 connection_id=connection.id,
                 tool_name=name,
-                tool_schema={"type": "object", "properties": {"id": {"type": "integer"}}},
-                description=f"{name} tool",
+                tool_schema={
+                    "inputSchema": {"type": "object", "properties": {"id": {"type": "integer"}}},
+                    "description": f"{name} tool",
+                },
             )
         )
     await db.flush()
@@ -216,3 +226,19 @@ async def test_platform_admins_need_a_grant_like_everyone_else(db_session: Async
     await _connection(db_session, org)
 
     assert await list_gateway_tools(db_session, _caller(org, role, admin=True)) == []
+
+
+async def test_nothing_is_served_or_called_while_the_feature_is_off(
+    db_session: AsyncSession, gateway_feature_on: AsyncMock
+) -> None:
+    org, role = await _org(db_session), await _role(db_session)
+    connection = await _connection(db_session, org)
+    await _grant(db_session, connection, role, None)
+    gateway_feature_on.return_value = False
+
+    assert await list_gateway_tools(db_session, _caller(org, role)) == []
+    with patch(DISPATCH, AsyncMock()) as dispatch:
+        with pytest.raises(GatewayCallError) as refused:
+            await call_gateway_tool(db_session, _caller(org, role), "autotask__get_ticket", {})
+    assert refused.value.code == "disabled"
+    dispatch.assert_not_awaited()

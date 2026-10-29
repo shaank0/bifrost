@@ -1,7 +1,7 @@
 """Failure alerts table.
 
 Revision ID: 20261029_alerts
-Revises: 20261025_remote_worker_ownership
+Revises: 20261029_kw_merge_mcp_gateway
 """
 
 from typing import Sequence, Union
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "20261029_alerts"
-down_revision: Union[str, None] = "20261025_remote_worker_ownership"
+down_revision: Union[str, None] = "20261029_kw_merge_mcp_gateway"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

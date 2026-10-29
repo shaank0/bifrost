@@ -57,8 +57,10 @@ import { $api, apiClient } from "@/lib/api-client";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useOrganizationName } from "@/hooks/useOrganizationName";
 import { toast } from "sonner";
+import { useFeatureEnabled } from "@/services/platformFeatures";
 
 export function MCPConnectionEdit() {
+	const gatewayOn = useFeatureEnabled("mcp_gateway");
 	const { serverId, connectionId } = useParams<{
 		serverId: string;
 		connectionId: string;
@@ -884,7 +886,7 @@ export function MCPConnectionEdit() {
 						</CardContent>
 					</Card>
 
-					<ConnectionGatewayPanel connectionId={connection.id} />
+					{gatewayOn && <ConnectionGatewayPanel connectionId={connection.id} />}
 				</fieldset>
 				{saveError && (
 					<Alert
